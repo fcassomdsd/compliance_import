@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Checklist",
+  "type": "object",
+  "required": ["schemaVersion", "checklist", "items"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "checklist": {
+      "type": "object",
+      "required": ["inspectionId", "inspectionCode", "domain", "providerId"],
+      "properties": {
+        "inspectionId": { "type": "string" },
+        "inspectionCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{4}-\\d{4}-\\d{2}$"
+        },
+        "locationId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "checklistId": {
+          "type": "string",
+          "pattern": "^CHK-[A-Z0-9]{4}-\\d{4}-\\d{2}-[A-Z]{3}$"
+        },
+        "domain": { "type": "string" },
+        "providerId": { "type": "string" },
+        "providerName": { "type": "string" },
+        "inspectors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["itemId", "itemCode", "compliance"],
+        "properties": {
+          "itemId": { "type": "string" },
+          "itemCode": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}-\\d{4}$"
+          },
+          "requirement": { "type": "string" },
+          "verificationMethod": { "type": "string" },
+          "comment": { "type": "string" },
+          "reference": {
+            "type": "object",
+            "properties": {
+              "icaoReference": { "type": "string" },
+              "nationalRegulation": { "type": "string" }
+            }
+          },
+          "compliance": {
+            "type": "string",
+            "enum": ["Compliant", "Non-compliant", "Not applicable"]
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": ["Low", "Medium", "High", "Critical"]
+          },
+          "evidence": {
+            "type": "object",
+            "required": ["evidenceId"],
+            "properties": {
+              "evidenceId": { "type": "string" },
+              "evidenceType": { "type": "string" },
+              "evidenceSource": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
