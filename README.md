@@ -12,9 +12,10 @@ Storage behavior:
 - Python virtual environment exists at `venv/`
 - Dependencies installed from `requirements.txt`
 - Test payload ZIP exists at `example data/inspection_payload.zip`
-- Environment variables configured:
-  - `ALFRESCO_USERNAME`
-  - `ALFRESCO_PASSWORD`
+- Alfresco credentials configured using one of:
+  - Docker secret files mounted at `/run/secrets/alfresco_username` and `/run/secrets/alfresco_password`
+  - `ALFRESCO_USERNAME_FILE` and `ALFRESCO_PASSWORD_FILE`
+  - `ALFRESCO_USERNAME` and `ALFRESCO_PASSWORD`
   - Optional: `ALFRESCO_URL`, `ALFRESCO_CANONICAL_JSON_PATH`, `ALFRESCO_TIMEOUT_SECONDS`
   - Optional retry/backoff:
     - `ALFRESCO_RETRY_TOTAL` (default `3`)
@@ -30,6 +31,42 @@ export ALFRESCO_PASSWORD="admin"
 export ALFRESCO_RETRY_TOTAL="3"
 export ALFRESCO_RETRY_BACKOFF_SECONDS="0.5"
 ```
+
+## Docker
+
+### Files added
+- `Dockerfile`
+- `docker-compose.yml`
+- `.env.docker.example`
+- `docker/secrets/alfresco_username.txt.example`
+- `docker/secrets/alfresco_password.txt.example`
+
+### Run with Docker Compose
+From the repository root:
+
+```bash
+cp .env.docker.example .env
+cp docker/secrets/alfresco_username.txt.example docker/secrets/alfresco_username.txt
+cp docker/secrets/alfresco_password.txt.example docker/secrets/alfresco_password.txt
+# edit .env and docker/secrets/*.txt with real values
+
+docker compose up --build -d
+```
+
+Service endpoint:
+
+```text
+http://127.0.0.1:8000/inspection-import
+```
+
+### Credential resolution order
+The app reads Alfresco credentials in this order for each setting (`ALFRESCO_USERNAME`, `ALFRESCO_PASSWORD`):
+
+1. `ALFRESCO_*_FILE`
+2. Docker default secret path in `/run/secrets/...`
+3. `ALFRESCO_*` environment variable
+
+If none is provided, startup fails with a clear error message.
 
 ### Run
 From the repository root:
