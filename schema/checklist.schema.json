@@ -61,13 +61,16 @@
             "enum": ["Low", "Medium", "High", "Critical"]
           },
           "evidence": {
-            "type": "object",
-            "required": ["evidenceId"],
-            "properties": {
-              "evidenceId": { "type": "string" },
-              "evidenceType": { "type": "string" },
-              "evidenceSource": { "type": "string" }
-            }
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["evidenceId"],
+                "properties": {
+                  "evidenceId": { "type": "string" },
+                  "evidenceType": { "type": "string" },
+                  "evidenceSource": { "type": "string" }
+                }
+              }
           }
         }
       }

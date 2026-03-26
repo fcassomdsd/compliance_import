@@ -75,6 +75,19 @@ From the repository root:
 ./run_dryrun.sh
 ```
 
+### Run unit tests
+From the repository root:
+
+```bash
+venv/bin/python -m unittest -v
+```
+
+Run only the evidence normalization tests:
+
+```bash
+venv/bin/python -m unittest tests/test_transformer_normalize_evidence.py -v
+```
+
 ### Expected response
 A successful run returns JSON similar to:
 
@@ -88,6 +101,8 @@ A successful run returns JSON similar to:
   - `findings.json` containing an array (or one object), or
   - multiple files matching `finding*.json`
 - Zero or more evidence files (any non-JSON files in the ZIP payload)
+- `checklist.items[].evidence` is an optional array of evidence objects
+- Legacy single-object `checklist.items[].evidence` is accepted and normalized to a one-item array during import
 
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)

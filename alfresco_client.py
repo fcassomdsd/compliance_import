@@ -157,7 +157,7 @@ class AlfrescoClient:
 
     def store_checklist_document(self, checklist):
 
-        inspection_id = checklist["checklist"]["inspectionId"]
+        inspection_id = checklist["checklist"]["inspectionCode"]
         domain = checklist["checklist"]["domain"]
         filename = f"Checklist {inspection_id} {domain}"
         return self.upload_json_document(filename, checklist, domain)

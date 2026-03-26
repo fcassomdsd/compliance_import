@@ -62,6 +62,32 @@ def _find_evidence_files(root_path):
     return evidence_files
 
 
+def _normalize_checklist_evidence(checklist):
+
+    items = checklist.get("items")
+
+    if not isinstance(items, list):
+        return checklist
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        if "evidence" not in item:
+            continue
+
+        evidence = item["evidence"]
+
+        if evidence is None:
+            item["evidence"] = []
+            continue
+
+        if isinstance(evidence, dict):
+            item["evidence"] = [evidence]
+
+    return checklist
+
+
 def process_inspection(path):
 
     checklist_path = _find_file(path, "checklist.json")
@@ -71,6 +97,8 @@ def process_inspection(path):
 
     with checklist_path.open() as f:
         checklist = json.load(f)
+
+    checklist = _normalize_checklist_evidence(checklist)
 
     findings = _load_findings(path)
     evidence_files = _find_evidence_files(path)
