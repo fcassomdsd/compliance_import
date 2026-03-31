@@ -1,0 +1,28 @@
+services:
+  compliance-import:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ALFRESCO_URL: ${ALFRESCO_URL:-http://host.docker.internal:8080/alfresco/api/-default-/public/alfresco/versions/1}
+      ALFRESCO_CANONICAL_JSON_PATH: ${ALFRESCO_CANONICAL_JSON_PATH:-Sites/vigilancia-de-la-so/documentLibrary/Inspecciones/Inspecciones/Datos de campo}
+      ALFRESCO_TIMEOUT_SECONDS: ${ALFRESCO_TIMEOUT_SECONDS:-20}
+      ALFRESCO_RETRY_TOTAL: ${ALFRESCO_RETRY_TOTAL:-3}
+      ALFRESCO_RETRY_CONNECT: ${ALFRESCO_RETRY_CONNECT:-3}
+      ALFRESCO_RETRY_STATUS: ${ALFRESCO_RETRY_STATUS:-3}
+      ALFRESCO_RETRY_BACKOFF_SECONDS: ${ALFRESCO_RETRY_BACKOFF_SECONDS:-0.5}
+    secrets:
+      - source: alfresco_username
+        target: alfresco_username
+      - source: alfresco_password
+        target: alfresco_password
+
+secrets:
+  alfresco_username:
+    file: ./docker/secrets/alfresco_username.txt
+  alfresco_password:
+    file: ./docker/secrets/alfresco_password.txt

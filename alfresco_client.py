@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -13,6 +14,40 @@ DEFAULT_RETRY_CONNECT = 3
 DEFAULT_RETRY_STATUS = 3
 DEFAULT_RETRY_BACKOFF_SECONDS = 0.5
 DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+
+
+def _read_secret_value(path):
+
+    secret_path = Path(path)
+
+    if not secret_path.is_file():
+        return None
+
+    value = secret_path.read_text(encoding="utf-8").strip()
+    return value or None
+
+
+def _read_required_setting(env_name, default_secret_path):
+
+    file_env_name = f"{env_name}_FILE"
+    file_path = os.getenv(file_env_name)
+
+    if file_path:
+        value = _read_secret_value(file_path)
+        if value:
+            return value
+
+    default_secret_value = _read_secret_value(default_secret_path)
+    if default_secret_value:
+        return default_secret_value
+
+    env_value = os.getenv(env_name)
+    if env_value:
+        return env_value
+
+    raise ValueError(
+        f"Missing {env_name}. Set {env_name}, {file_env_name}, or mount secret at {default_secret_path}"
+    )
 
 
 class AlfrescoClient:
@@ -29,11 +64,8 @@ class AlfrescoClient:
             os.getenv("ALFRESCO_RETRY_BACKOFF_SECONDS", str(DEFAULT_RETRY_BACKOFF_SECONDS))
         )
 
-        username = os.getenv("ALFRESCO_USERNAME")
-        password = os.getenv("ALFRESCO_PASSWORD")
-
-        if not username or not password:
-            raise ValueError("Missing ALFRESCO_USERNAME/ALFRESCO_PASSWORD environment variables")
+        username = _read_required_setting("ALFRESCO_USERNAME", "/run/secrets/alfresco_username")
+        password = _read_required_setting("ALFRESCO_PASSWORD", "/run/secrets/alfresco_password")
 
         self.session = requests.Session()
         self.session.auth = (username, password)
@@ -125,7 +157,7 @@ class AlfrescoClient:
 
     def store_checklist_document(self, checklist):
 
-        inspection_id = checklist["checklist"]["inspectionId"]
+        inspection_id = checklist["checklist"]["inspectionCode"]
         domain = checklist["checklist"]["domain"]
         filename = f"Checklist {inspection_id} {domain}"
         return self.upload_json_document(filename, checklist, domain)
