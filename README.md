@@ -103,6 +103,7 @@ A successful run returns JSON similar to:
 - Zero or more evidence files (any non-JSON files in the ZIP payload)
 - `checklist.items[].evidence` is an optional array of evidence objects
 - Legacy single-object `checklist.items[].evidence` is accepted and normalized to a one-item array during import
+- Checklist metadata supports `locationName` (renamed from legacy `location`), `icaoCode`, `specialtyId`, `specialtyCode`, and `specialtyName`
 
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)

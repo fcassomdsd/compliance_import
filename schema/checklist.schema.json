@@ -18,6 +18,10 @@
         },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
+        "icaoCode": { "type": "string" },
+        "specialtyId": { "type": "string" },
+        "specialtyCode": { "type": "string" },
+        "specialtyName": { "type": "string" },
         "checklistId": {
           "type": "string",
           "pattern": "^CHK-[A-Z0-9]{4}-\\d{4}-\\d{2}-[A-Z]{3}$"

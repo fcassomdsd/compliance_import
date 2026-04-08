@@ -1,3 +1,2 @@
-example*
 docker/secrets/*.txt
 .env
