@@ -3,8 +3,8 @@
 FastAPI service for ingesting one Checklist and zero or more Findings, validating them against JSON schemas, and storing canonical JSON documents in Alfresco.
 
 Storage behavior:
-- Creates/uses a domain folder under the canonical base path.
-- Stores checklist JSON, finding JSON, and evidence files in that domain folder.
+- Creates/uses a specialtyName folder under the canonical base path.
+- Stores checklist JSON, finding JSON, and evidence files in that specialtyName folder.
 
 ## Local Dry-Run
 

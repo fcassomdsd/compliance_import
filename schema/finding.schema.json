@@ -9,13 +9,15 @@
     },
     "finding": {
       "type": "object",
-      "required": ["findingId", "domain", "providerId", "locationId", "locationName", "itemId", "itemCode", "description"],
+      "required": ["findingId", "specialtyId", "providerId", "locationId", "locationName", "itemId", "itemCode", "description"],
       "properties": {
         "findingId": {
           "type": "string",
           "pattern": "^[A-Z0-9]{4}-[A-Z]{3}-\\d{4}-\\d{2}$"
         },
-        "domain": { "type": "string" },
+        "specialtyId": { "type": "string" },
+        "specialtyCode": { "type": "string" },
+        "specialtyName": { "type": "string" },
         "providerId": { "type": "string" },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },

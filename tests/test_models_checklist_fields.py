@@ -11,11 +11,10 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "checklist": {
                 "inspectionId": "inspection-1",
                 "inspectionCode": "MDPP-2026-01",
-                "domain": "VIG",
+                "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "locationName": "Aeropuerto Internacional Gregorio Luperon",
                 "icaoCode": "MDPP",
-                "specialtyId": "specialty-1",
                 "specialtyCode": "VIG",
                 "specialtyName": "Vigilancia",
             },

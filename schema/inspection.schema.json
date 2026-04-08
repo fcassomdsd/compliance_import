@@ -18,8 +18,6 @@
 
         "type": { "type": "string" },
 
-        "domain": { "type": "string" },
-
         "providerId": { "type": "string" },
 
         "locationId": { "type": "string" },

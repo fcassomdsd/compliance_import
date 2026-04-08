@@ -23,7 +23,9 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
             "checklist": {
                 "inspectionId": "id-1",
                 "inspectionCode": "ABCD-2026-01",
-                "domain": "VIG",
+                "specialtyId": "specialty-1",
+                "specialtyCode": "VIG",
+                "specialtyName": "Vigilancia",
                 "providerId": "provider-1",
             },
             "items": [item],
@@ -97,7 +99,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                 "schemaVersion": "1.0",
                 "finding": {
                     "findingId": "ABCD-VIG-2026-01",
-                    "domain": "VIG",
+                    "specialtyId": "specialty-1",
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
@@ -126,7 +128,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                 "schemaVersion": "1.0",
                 "finding": {
                     "findingId": "ABCD-VIG-2026-01",
-                    "domain": "VIG",
+                    "specialtyId": "specialty-1",
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",

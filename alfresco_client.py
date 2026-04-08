@@ -69,7 +69,7 @@ class AlfrescoClient:
 
         self.session = requests.Session()
         self.session.auth = (username, password)
-        self._ensured_domain_folders = set()
+        self._ensured_specialty_folders = set()
 
         retry = Retry(
             total=self.retry_total,
@@ -87,13 +87,13 @@ class AlfrescoClient:
         self.session.mount("https://", adapter)
 
 
-    def _ensure_domain_folder(self, domain):
+    def _ensure_specialty_folder(self, specialty_name):
 
-        if domain in self._ensured_domain_folders:
+        if specialty_name in self._ensured_specialty_folders:
             return
 
         payload = {
-            "name": domain,
+            "name": specialty_name,
             "nodeType": "cm:folder",
             "relativePath": self.canonical_json_path
         }
@@ -107,7 +107,7 @@ class AlfrescoClient:
         if response.status_code != 409:
             self._check_response(response)
 
-        self._ensured_domain_folders.add(domain)
+        self._ensured_specialty_folders.add(specialty_name)
 
     def _check_response(self, response):
 
@@ -129,9 +129,9 @@ class AlfrescoClient:
         return response
 
 
-    def upload_json_document(self, filename, document, domain):
+    def upload_json_document(self, filename, document, specialty_name):
 
-        self._ensure_domain_folder(domain)
+        self._ensure_specialty_folder(specialty_name)
 
         payload = json.dumps(document, ensure_ascii=False, indent=2).encode("utf-8")
 
@@ -142,7 +142,7 @@ class AlfrescoClient:
         data = {
             "name": f"{filename}.json",
             "nodeType": "cm:content",
-            "relativePath": f"{self.canonical_json_path}/{domain}",
+            "relativePath": f"{self.canonical_json_path}/{specialty_name}",
             "autoRename": "true"
         }
 
@@ -158,22 +158,23 @@ class AlfrescoClient:
     def store_checklist_document(self, checklist):
 
         inspection_id = checklist["checklist"]["inspectionCode"]
-        domain = checklist["checklist"]["domain"]
-        filename = f"Checklist {inspection_id} {domain}"
-        return self.upload_json_document(filename, checklist, domain)
+        specialty_code = checklist["checklist"]["specialtyCode"]
+        specialty_name = checklist["checklist"]["specialtyName"]
+        filename = f"Checklist {inspection_id} {specialty_code}"
+        return self.upload_json_document(filename, checklist, specialty_name)
 
 
     def store_finding_document(self, finding):
 
         finding_id = finding["finding"]["findingId"]
-        domain = finding["finding"]["domain"]
+        specialty_name = finding["finding"]["specialtyName"]
         filename = f"Finding {finding_id}"
-        return self.upload_json_document(filename, finding, domain)
+        return self.upload_json_document(filename, finding, specialty_name)
 
 
-    def store_evidence_file(self, domain, filepath):
+    def store_evidence_file(self, specialty_name, filepath):
 
-        self._ensure_domain_folder(domain)
+        self._ensure_specialty_folder(specialty_name)
 
         with open(filepath, "rb") as evidence_file:
             files = {
@@ -183,7 +184,7 @@ class AlfrescoClient:
             data = {
                 "name": filepath.name,
                 "nodeType": "cm:content",
-                "relativePath": f"{self.canonical_json_path}/{domain}",
+                "relativePath": f"{self.canonical_json_path}/{specialty_name}",
                 "autoRename": "true"
             }
 

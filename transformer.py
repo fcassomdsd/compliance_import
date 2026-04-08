@@ -91,6 +91,10 @@ def _normalize_checklist_evidence(checklist):
 def _enrich_findings_with_item_code(findings, checklist):
 
     item_id_to_code = {}
+    checklist_data = checklist.get("checklist", {})
+    checklist_specialty_id = checklist_data.get("specialtyId")
+    checklist_specialty_code = checklist_data.get("specialtyCode")
+    checklist_specialty_name = checklist_data.get("specialtyName")
 
     for item in checklist.get("items", []):
         if not isinstance(item, dict):
@@ -113,6 +117,15 @@ def _enrich_findings_with_item_code(findings, checklist):
             )
 
         finding_data["itemCode"] = item_code
+
+        if "specialtyId" not in finding_data and checklist_specialty_id is not None:
+            finding_data["specialtyId"] = checklist_specialty_id
+
+        if "specialtyCode" not in finding_data and checklist_specialty_code is not None:
+            finding_data["specialtyCode"] = checklist_specialty_code
+
+        if "specialtyName" not in finding_data and checklist_specialty_name is not None:
+            finding_data["specialtyName"] = checklist_specialty_name
 
     return findings
 
@@ -138,7 +151,7 @@ def process_inspection(path):
     validate_findings(findings)
 
     alf = AlfrescoClient()
-    domain = checklist["checklist"]["domain"]
+    specialty_name = checklist["checklist"]["specialtyName"]
 
     alf.store_checklist_document(checklist)
 
@@ -146,7 +159,7 @@ def process_inspection(path):
         alf.store_finding_document(finding)
 
     for evidence_file in evidence_files:
-        alf.store_evidence_file(domain, evidence_file)
+        alf.store_evidence_file(specialty_name, evidence_file)
 
     return {
         "inspectionId": checklist["checklist"]["inspectionId"],

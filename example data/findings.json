@@ -3,7 +3,9 @@
     "schemaVersion": "1.0",
     "finding": {
       "findingId": "MDPP-VIG-2026-01",
-      "domain": "VIG",
+      "specialtyId": "a01k-specialty-vig-0001",
+      "specialtyCode": "VIG",
+      "specialtyName": "Vigilancia",
       "providerId": "a01kkq6arvbeef8ssmsd2aqnvyb",
       "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
       "locationName": "Aeropuerto Internacional Gregorio Luperon",
@@ -19,7 +21,9 @@
     "schemaVersion": "1.0",
     "finding": {
       "findingId": "MDPP-VIG-2026-02",
-      "domain": "VIG",
+      "specialtyId": "a01k-specialty-vig-0001",
+      "specialtyCode": "VIG",
+      "specialtyName": "Vigilancia",
       "providerId": "a01kkq6arvbeef8ssmsd2aqnvyb",
       "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
       "locationName": "Aeropuerto Internacional Gregorio Luperon",
