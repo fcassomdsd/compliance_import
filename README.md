@@ -108,6 +108,7 @@ A successful run returns JSON similar to:
 - `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)
 - `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
 - `finding.findingId`: `XXXX-DDD-YYYY-NN` (example: `MDPP-VIG-2026-01`)
+- `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
 
 ## Schemas
 - Checklist schema: `schema/checklist.schema.json`

@@ -88,6 +88,35 @@ def _normalize_checklist_evidence(checklist):
     return checklist
 
 
+def _enrich_findings_with_item_code(findings, checklist):
+
+    item_id_to_code = {}
+
+    for item in checklist.get("items", []):
+        if not isinstance(item, dict):
+            continue
+
+        item_id = item.get("itemId")
+        item_code = item.get("itemCode")
+
+        if item_id and item_code:
+            item_id_to_code[item_id] = item_code
+
+    for finding in findings:
+        finding_data = finding.get("finding", {})
+        item_id = finding_data.get("itemId")
+
+        item_code = item_id_to_code.get(item_id)
+        if item_code is None:
+            raise ValueError(
+                f"Could not map finding itemId '{item_id}' to a checklist itemCode"
+            )
+
+        finding_data["itemCode"] = item_code
+
+    return findings
+
+
 def process_inspection(path):
 
     checklist_path = _find_file(path, "checklist.json")
@@ -102,6 +131,8 @@ def process_inspection(path):
 
     findings = _load_findings(path)
     evidence_files = _find_evidence_files(path)
+
+    findings = _enrich_findings_with_item_code(findings, checklist)
 
     validate_checklist(checklist)
     validate_findings(findings)

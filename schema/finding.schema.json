@@ -9,7 +9,7 @@
     },
     "finding": {
       "type": "object",
-      "required": ["findingId", "domain", "providerId", "locationId", "locationName", "itemId", "description"],
+      "required": ["findingId", "domain", "providerId", "locationId", "locationName", "itemId", "itemCode", "description"],
       "properties": {
         "findingId": {
           "type": "string",
@@ -20,6 +20,10 @@
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
         "itemId": { "type": "string" },
+        "itemCode": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}-\\d{4}$"
+        },
         "requirementBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": { "type": "string" },
