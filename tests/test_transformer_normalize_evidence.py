@@ -1,6 +1,6 @@
 import unittest
 
-from transformer import _normalize_checklist_evidence
+from transformer import _enrich_findings_with_item_code, _normalize_checklist_evidence
 
 
 MISSING = object()
@@ -23,7 +23,9 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
             "checklist": {
                 "inspectionId": "id-1",
                 "inspectionCode": "ABCD-2026-01",
-                "domain": "VIG",
+                "specialtyId": "specialty-1",
+                "specialtyCode": "VIG",
+                "specialtyName": "Vigilancia",
                 "providerId": "provider-1",
             },
             "items": [item],
@@ -78,6 +80,70 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
         normalized = _normalize_checklist_evidence(checklist)
 
         self.assertNotIn("evidence", normalized["items"][0])
+
+
+class EnrichFindingsWithItemCodeTests(unittest.TestCase):
+
+    def test_adds_item_code_from_checklist_item_id(self):
+        checklist = {
+            "checklist": {
+                "icaoCode": "MDPP",
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "VIG-0001",
+                    "compliance": "Compliant",
+                }
+            ]
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": "ABCD-VIG-2026-01",
+                    "specialtyId": "specialty-1",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Location",
+                    "itemId": "item-1",
+                    "description": "desc",
+                },
+            }
+        ]
+
+        enriched = _enrich_findings_with_item_code(findings, checklist)
+
+        self.assertEqual("VIG-0001", enriched[0]["finding"]["itemCode"])
+        self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
+
+    def test_raises_when_finding_item_id_has_no_checklist_match(self):
+        checklist = {
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "VIG-0001",
+                    "compliance": "Compliant",
+                }
+            ]
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": "ABCD-VIG-2026-01",
+                    "specialtyId": "specialty-1",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Location",
+                    "itemId": "item-2",
+                    "description": "desc",
+                },
+            }
+        ]
+
+        with self.assertRaises(ValueError):
+            _enrich_findings_with_item_code(findings, checklist)
 
 
 if __name__ == "__main__":

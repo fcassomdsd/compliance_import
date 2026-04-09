@@ -3,8 +3,8 @@
 FastAPI service for ingesting one Checklist and zero or more Findings, validating them against JSON schemas, and storing canonical JSON documents in Alfresco.
 
 Storage behavior:
-- Creates/uses a domain folder under the canonical base path.
-- Stores checklist JSON, finding JSON, and evidence files in that domain folder.
+- Creates/uses a specialtyName folder under the canonical base path.
+- Stores checklist JSON, finding JSON, and evidence files in that specialtyName folder.
 
 ## Local Dry-Run
 
@@ -103,11 +103,14 @@ A successful run returns JSON similar to:
 - Zero or more evidence files (any non-JSON files in the ZIP payload)
 - `checklist.items[].evidence` is an optional array of evidence objects
 - Legacy single-object `checklist.items[].evidence` is accepted and normalized to a one-item array during import
+- Checklist metadata supports `locationName` (renamed from legacy `location`), `icaoCode`, `specialtyId`, `specialtyCode`, and `specialtyName`
 
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)
 - `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
 - `finding.findingId`: `XXXX-DDD-YYYY-NN` (example: `MDPP-VIG-2026-01`)
+- `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
+- `finding.locationCode`: populated during import from `checklist.checklist.icaoCode`
 
 ## Schemas
 - Checklist schema: `schema/checklist.schema.json`

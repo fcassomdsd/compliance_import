@@ -9,7 +9,7 @@
     },
     "checklist": {
       "type": "object",
-      "required": ["inspectionId", "inspectionCode", "domain", "providerId"],
+      "required": ["inspectionId", "inspectionCode", "specialtyId", "specialtyCode", "specialtyName", "providerId"],
       "properties": {
         "inspectionId": { "type": "string" },
         "inspectionCode": {
@@ -18,11 +18,14 @@
         },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
+        "icaoCode": { "type": "string" },
+        "specialtyId": { "type": "string" },
+        "specialtyCode": { "type": "string" },
+        "specialtyName": { "type": "string" },
         "checklistId": {
           "type": "string",
           "pattern": "^CHK-[A-Z0-9]{4}-\\d{4}-\\d{2}-[A-Z]{3}$"
         },
-        "domain": { "type": "string" },
         "providerId": { "type": "string" },
         "providerName": { "type": "string" },
         "inspectors": {
