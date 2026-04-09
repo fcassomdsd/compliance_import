@@ -1,2 +1,4 @@
 docker/secrets/*.txt
 .env
+__pycache__
+tests/__pycache__
