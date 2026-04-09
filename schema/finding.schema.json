@@ -9,7 +9,7 @@
     },
     "finding": {
       "type": "object",
-      "required": ["findingId", "specialtyId", "providerId", "locationId", "locationName", "itemId", "itemCode", "description"],
+      "required": ["findingId", "specialtyId", "providerId", "locationId", "locationName", "locationCode", "itemId", "itemCode", "description"],
       "properties": {
         "findingId": {
           "type": "string",
@@ -21,6 +21,7 @@
         "providerId": { "type": "string" },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
+        "locationCode": { "type": "string" },
         "itemId": { "type": "string" },
         "itemCode": {
           "type": "string",

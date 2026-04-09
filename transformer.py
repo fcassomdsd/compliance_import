@@ -95,6 +95,7 @@ def _enrich_findings_with_item_code(findings, checklist):
     checklist_specialty_id = checklist_data.get("specialtyId")
     checklist_specialty_code = checklist_data.get("specialtyCode")
     checklist_specialty_name = checklist_data.get("specialtyName")
+    checklist_location_code = checklist_data.get("icaoCode")
 
     for item in checklist.get("items", []):
         if not isinstance(item, dict):
@@ -126,6 +127,9 @@ def _enrich_findings_with_item_code(findings, checklist):
 
         if "specialtyName" not in finding_data and checklist_specialty_name is not None:
             finding_data["specialtyName"] = checklist_specialty_name
+
+        if "locationCode" not in finding_data and checklist_location_code is not None:
+            finding_data["locationCode"] = checklist_location_code
 
     return findings
 

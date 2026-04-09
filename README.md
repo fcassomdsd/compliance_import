@@ -110,6 +110,7 @@ A successful run returns JSON similar to:
 - `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
 - `finding.findingId`: `XXXX-DDD-YYYY-NN` (example: `MDPP-VIG-2026-01`)
 - `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
+- `finding.locationCode`: populated during import from `checklist.checklist.icaoCode`
 
 ## Schemas
 - Checklist schema: `schema/checklist.schema.json`

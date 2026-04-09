@@ -86,6 +86,9 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
 
     def test_adds_item_code_from_checklist_item_id(self):
         checklist = {
+            "checklist": {
+                "icaoCode": "MDPP",
+            },
             "items": [
                 {
                     "itemId": "item-1",
@@ -112,6 +115,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
         enriched = _enrich_findings_with_item_code(findings, checklist)
 
         self.assertEqual("VIG-0001", enriched[0]["finding"]["itemCode"])
+        self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
 
     def test_raises_when_finding_item_id_has_no_checklist_match(self):
         checklist = {
