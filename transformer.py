@@ -1,8 +1,9 @@
 import json
+import re
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
-from models import validate_checklist, validate_findings
+from models import validate_checklist, validate_findings, validate_session
 
 
 def _find_file(root_path, filename):
@@ -41,6 +42,17 @@ def _load_findings(root_path):
             findings.append(json.load(f))
 
     return findings
+
+
+def _load_session(root_path):
+
+    session_file = _find_file(root_path, "session.json")
+
+    if session_file is None:
+        return None
+
+    with session_file.open() as f:
+        return json.load(f)
 
 
 def _find_evidence_files(root_path):
@@ -88,9 +100,115 @@ def _normalize_checklist_evidence(checklist):
     return checklist
 
 
+def _extract_question_text(item):
+
+    for field_name in ("requirement", "questionText", "question", "text"):
+        value = item.get(field_name)
+        if isinstance(value, str) and value.strip():
+            return value
+
+    return None
+
+
+def _extract_date(value):
+
+    if not isinstance(value, str):
+        return None
+
+    match = re.match(r"^(\d{4}-\d{2}-\d{2})", value)
+    if not match:
+        return None
+
+    return match.group(1)
+
+
+def _build_findings_from_session(session_data, checklist):
+
+    summary = session_data.get("summary", {})
+    responses = session_data.get("responses", {})
+
+    checklist_data = checklist.get("checklist", {})
+    items = checklist.get("items", [])
+
+    item_id_to_item = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("itemId")
+        if item_id:
+            item_id_to_item[item_id] = item
+
+    inspection_code = checklist_data.get("inspectionCode", "")
+    specialty_code = checklist_data.get("specialtyCode", "")
+
+    inspection_prefix = inspection_code.split("-")[0] if "-" in inspection_code else "UNKN"
+    inspection_year = inspection_code.split("-")[1] if len(inspection_code.split("-")) > 1 else "0000"
+
+    date_issued = _extract_date(summary.get("lastUpdated"))
+
+    findings = []
+    counter = 0
+
+    for response in responses.values():
+        if not isinstance(response, dict):
+            continue
+
+        item_id = response.get("id")
+        if not item_id:
+            continue
+
+        details = response.get("nonConformityDetails") or {}
+        if not isinstance(details, dict):
+            details = {}
+
+        description = details.get("description") or response.get("comments")
+        finding_level = details.get("findingLevel")
+
+        if not description or not finding_level:
+            continue
+
+        item = item_id_to_item.get(item_id)
+        if item is None:
+            raise ValueError(
+                f"Could not map session response id '{item_id}' to a checklist item"
+            )
+
+        counter += 1
+        finding_id = f"{inspection_prefix}-{specialty_code}-{inspection_year}-{counter:02d}"
+
+        finding_data = {
+            "findingId": finding_id,
+            "specialtyId": checklist_data.get("specialtyId"),
+            "specialtyCode": checklist_data.get("specialtyCode"),
+            "specialtyName": checklist_data.get("specialtyName"),
+            "providerId": checklist_data.get("providerId"),
+            "locationId": checklist_data.get("locationId") or summary.get("locationId"),
+            "locationName": checklist_data.get("locationName"),
+            "locationCode": checklist_data.get("icaoCode"),
+            "itemId": item_id,
+            "itemCode": item.get("itemCode"),
+            "requirementBreached": _extract_question_text(item),
+            "findingLevel": finding_level,
+            "description": description,
+            "riskLevel": details.get("riskLevel"),
+        }
+
+        if date_issued is not None:
+            finding_data["dateIssued"] = date_issued
+
+        findings.append(
+            {
+                "schemaVersion": "1.0",
+                "finding": finding_data,
+            }
+        )
+
+    return findings
+
+
 def _enrich_findings_with_item_code(findings, checklist):
 
-    item_id_to_code = {}
+    item_id_to_item = {}
     checklist_data = checklist.get("checklist", {})
     checklist_specialty_id = checklist_data.get("specialtyId")
     checklist_specialty_code = checklist_data.get("specialtyCode")
@@ -102,22 +220,30 @@ def _enrich_findings_with_item_code(findings, checklist):
             continue
 
         item_id = item.get("itemId")
-        item_code = item.get("itemCode")
 
-        if item_id and item_code:
-            item_id_to_code[item_id] = item_code
+        if item_id:
+            item_id_to_item[item_id] = item
 
     for finding in findings:
         finding_data = finding.get("finding", {})
         item_id = finding_data.get("itemId")
 
-        item_code = item_id_to_code.get(item_id)
+        item = item_id_to_item.get(item_id)
+        if item is None:
+            raise ValueError(
+                f"Could not map finding itemId '{item_id}' to a checklist itemCode"
+            )
+
+        item_code = item.get("itemCode")
         if item_code is None:
             raise ValueError(
                 f"Could not map finding itemId '{item_id}' to a checklist itemCode"
             )
 
         finding_data["itemCode"] = item_code
+        requirement_text = _extract_question_text(item)
+        if requirement_text is not None:
+            finding_data["requirementBreached"] = requirement_text
 
         if "specialtyId" not in finding_data and checklist_specialty_id is not None:
             finding_data["specialtyId"] = checklist_specialty_id
@@ -147,7 +273,12 @@ def process_inspection(path):
     checklist = _normalize_checklist_evidence(checklist)
 
     findings = _load_findings(path)
+    session_data = _load_session(path)
     evidence_files = _find_evidence_files(path)
+
+    if session_data is not None:
+        validate_session(session_data)
+        findings = _build_findings_from_session(session_data, checklist)
 
     findings = _enrich_findings_with_item_code(findings, checklist)
 

@@ -10,9 +10,9 @@
       "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
       "locationName": "Aeropuerto Internacional Gregorio Luperon",
       "itemId": "a01k65hkdvpe8v8c5gtfbcf659z",
-      "requirementBreached": "IDAC/DINA/DSV/9400",
+      "requirementBreached": "Establecer cursos y entrenamientos mínimos por cargo técnico.",
       "dateIssued": "2026-03-26",
-      "findingLevel": "Major",
+      "findingLevel": "Non-Compliance",
       "description": "No existe programación de cursos por cargo; solo se evidenció un plan anual.",
       "riskLevel": "High"
     }
@@ -28,9 +28,9 @@
       "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
       "locationName": "Aeropuerto Internacional Gregorio Luperon",
       "itemId": "a01k65hkdwceag9j2p68tjjxcmf",
-      "requirementBreached": "RAD 10 Volumen III 10.11 d)",
+      "requirementBreached": "Proteger servicios de vigilancia contra ataques y malware.",
       "dateIssued": "2026-03-26",
-      "findingLevel": "Minor",
+      "findingLevel": "Observation",
       "description": "El control de protección contra ataques y malware requiere fortalecer trazabilidad y evidencia periódica.",
       "riskLevel": "Medium"
     }
