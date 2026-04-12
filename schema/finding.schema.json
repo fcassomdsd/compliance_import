@@ -29,7 +29,10 @@
         },
         "requirementBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
-        "findingLevel": { "type": "string" },
+        "findingLevel": {
+          "type": "string",
+          "enum": ["Non-Compliance", "Observation", "Recommendation"]
+        },
         "description": { "type": "string" },
         "riskLevel": {
           "type": "string",

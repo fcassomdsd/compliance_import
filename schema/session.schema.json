@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Session",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "object",
+      "properties": {
+        "specialty": {
+          "type": "string"
+        },
+        "finalized": {
+          "type": "boolean"
+        },
+        "lastUpdated": {
+          "type": "string"
+        },
+        "generalComments": {
+          "type": "string"
+        },
+        "locationId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["specialty"]
+    },
+    "responses": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9_-]*$": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            },
+            "compliance": {
+              "type": "string",
+              "enum": ["Not applicable", "Compliant", "Non-compliant"]
+            },
+            "comments": {
+              "type": "string"
+            },
+            "nonConformityDetails": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string"
+                },
+                "riskLevel": {
+                  "type": "string",
+                  "enum": ["Low", "Medium", "High", "Critical"]
+                },
+                "findingLevel": {
+                  "type": "string",
+                  "enum": ["Non-Compliance", "Observation", "Recommendation"]
+                },
+                "audioNonConformity": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": true
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "audioComments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": ["id"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "required": ["summary"]
+}
