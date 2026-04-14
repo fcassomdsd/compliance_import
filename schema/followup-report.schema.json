@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FollowUpReport",
+  "type": "object",
+  "required": ["schemaVersion", "followUpReport"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "followUpReport": {
+      "type": "object",
+      "required": [
+        "findingId",
+        "providerId",
+        "locationId",
+        "locationName",
+        "followUpDate",
+        "findingClosed",
+        "percentComplete",
+        "effectivenessConfirmed",
+        "specialtyId",
+        "capId",
+        "evidence"
+      ],
+      "properties": {
+        "findingId": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{4}-[A-Z]{3}-\\d{4}-\\d{2}(?:-\\d{2})?$"
+        },
+        "providerId": { "type": "string" },
+        "locationId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "followUpDate": { "type": "string" },
+        "findingClosed": { "type": "boolean" },
+        "percentComplete": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "effectivenessConfirmed": { "type": "boolean" },
+        "specialtyId": { "type": "string" },
+        "capId": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["evidenceId", "evidenceType", "evidenceSource"],
+            "properties": {
+              "evidenceId": { "type": "string" },
+              "evidenceType": { "type": "string" },
+              "evidenceSource": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
