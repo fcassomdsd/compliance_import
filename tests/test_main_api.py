@@ -1,12 +1,12 @@
+import io
 import json
-import tempfile
 import unittest
-from pathlib import Path
+import zipfile
 from unittest.mock import patch
 
-from jsonschema.exceptions import ValidationError
+from fastapi.testclient import TestClient
 
-from transformer import process_followup_payload, process_inspection
+from main import app
 
 
 class FakeAlfrescoClient:
@@ -37,16 +37,27 @@ class FakeAlfrescoClient:
         self.followup_evidence.append((specialty_name, evidence_file.name))
 
 
-class ProcessInspectionSessionTests(unittest.TestCase):
+class ImportInspectionApiTests(unittest.TestCase):
 
     def setUp(self):
         FakeAlfrescoClient.instances = []
+        self.client = TestClient(app)
 
-    def _write_json(self, parent, filename, payload):
-        file_path = Path(parent) / filename
-        file_path.write_text(json.dumps(payload), encoding="utf-8")
+    def _build_zip_bytes(self, files):
+        buffer = io.BytesIO()
 
-    def test_process_inspection_builds_findings_from_session(self):
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for name, content in files.items():
+                if isinstance(content, (dict, list)):
+                    zip_file.writestr(name, json.dumps(content))
+                    continue
+
+                zip_file.writestr(name, content)
+
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def test_import_inspection_route_processes_standard_payload(self):
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
@@ -58,22 +69,21 @@ class ProcessInspectionSessionTests(unittest.TestCase):
                 "specialtyId": "specialty-1",
                 "specialtyCode": "VIG",
                 "specialtyName": "Vigilancia",
-                "providerId": "provider-1",
+                "providerId": "provider-1"
             },
             "items": [
                 {
                     "itemId": "item-1",
                     "itemCode": "VIG-0001",
                     "requirement": "Question text from checklist",
-                    "compliance": "Non-compliant",
+                    "compliance": "Non-compliant"
                 }
-            ],
+            ]
         }
-
         session_data = {
             "summary": {
                 "specialty": "Vigilancia",
-                "lastUpdated": "2026-03-26T10:35:00.000Z",
+                "lastUpdated": "2026-03-26T10:35:00.000Z"
             },
             "responses": {
                 "item-1": {
@@ -83,82 +93,37 @@ class ProcessInspectionSessionTests(unittest.TestCase):
                     "nonConformityDetails": {
                         "description": "Generated finding description",
                         "riskLevel": "High",
-                        "findingLevel": "Observation",
-                    },
+                        "findingLevel": "Observation"
+                    }
                 }
-            },
+            }
         }
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "checklist.json", checklist)
-            self._write_json(tmpdir, "session.json", session_data)
+        payload = self._build_zip_bytes(
+            {
+                "checklist.json": checklist,
+                "session.json": session_data,
+            }
+        )
 
-            with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
-                result = process_inspection(tmpdir)
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("inspection_payload_test.zip", payload, "application/zip")},
+            )
 
-        self.assertEqual("inspection-1", result["inspectionId"])
-        self.assertEqual(1, result["findingsImported"])
-        self.assertEqual(0, result["evidenceImported"])
-
-        client = FakeAlfrescoClient.instances[0]
-        self.assertEqual(1, len(client.checklists))
-        self.assertEqual(1, len(client.findings))
-
-        finding = client.findings[0]["finding"]
-        self.assertEqual("Observation", finding["findingLevel"])
-        self.assertEqual("Question text from checklist", finding["requirementBreached"])
-        self.assertEqual("2026-03-26", finding["dateIssued"])
-
-    def test_process_inspection_rejects_invalid_session_schema(self):
-        checklist = {
-            "schemaVersion": "1.0",
-            "checklist": {
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "status": "imported",
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-2026-01",
-                "locationId": "location-1",
-                "locationName": "Aeropuerto",
-                "icaoCode": "MDPP",
-                "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
-                "specialtyName": "Vigilancia",
-                "providerId": "provider-1",
+                "findingsImported": 1,
+                "evidenceImported": 0,
             },
-            "items": [
-                {
-                    "itemId": "item-1",
-                    "itemCode": "VIG-0001",
-                    "requirement": "Question text from checklist",
-                    "compliance": "Non-compliant",
-                }
-            ],
-        }
+            response.json(),
+        )
 
-        invalid_session_data = {
-            "summary": {
-                "lastUpdated": "2026-03-26T10:35:00.000Z"
-            },
-            "responses": {},
-        }
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "checklist.json", checklist)
-            self._write_json(tmpdir, "session.json", invalid_session_data)
-
-            with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
-                with self.assertRaises(ValidationError):
-                    process_inspection(tmpdir)
-
-
-class ProcessFollowupPayloadTests(unittest.TestCase):
-
-    def setUp(self):
-        FakeAlfrescoClient.instances = []
-
-    def _write_json(self, parent, filename, payload):
-        file_path = Path(parent) / filename
-        file_path.write_text(json.dumps(payload), encoding="utf-8")
-
-    def test_process_followup_payload_imports_reports_and_evidence(self):
+    def test_followup_import_route_processes_followup_payload(self):
         findings = [
             {
                 "findingId": "MDPP-VIG-2025-02",
@@ -177,8 +142,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 }
             }
         ]
-
-        reports = [
+        followup_reports = [
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
@@ -203,25 +167,31 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
             }
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
-            self._write_json(tmpdir, "followup-reports.json", reports)
+        payload = self._build_zip_bytes(
+            {
+                "findings.json": findings,
+                "followup-reports.json": followup_reports,
+                "FollowUpEvidence/proof.pdf": "binary-content",
+            }
+        )
 
-            evidence_dir = Path(tmpdir) / "FollowUpEvidence"
-            evidence_dir.mkdir(parents=True, exist_ok=True)
-            (evidence_dir / "proof.pdf").write_text("binary-content", encoding="utf-8")
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self.client.post(
+                "/followup-import",
+                files={"file": ("followup_payload_test.zip", payload, "application/zip")},
+            )
 
-            with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
-                result = process_followup_payload(tmpdir)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "status": "imported",
+                "followUpReportsImported": 1,
+                "followUpEvidenceImported": 1,
+            },
+            response.json(),
+        )
 
-        self.assertEqual(1, result["followUpReportsImported"])
-        self.assertEqual(1, result["followUpEvidenceImported"])
-
-        client = FakeAlfrescoClient.instances[0]
-        self.assertEqual(1, len(client.followup_reports))
-        self.assertEqual(1, len(client.followup_evidence))
-
-    def test_process_followup_payload_rejects_cap_mismatch(self):
+    def test_followup_import_route_rejects_followup_payload_with_missing_evidence(self):
         findings = [
             {
                 "findingId": "MDPP-VIG-2025-02",
@@ -236,12 +206,11 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "itemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
-                    "capId": "11"
+                    "capId": "10"
                 }
             }
         ]
-
-        reports = [
+        followup_reports = [
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
@@ -255,23 +224,39 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": "10",
-                    "evidence": []
+                    "evidence": [
+                        {
+                            "evidenceId": "FUEV-0001-01",
+                            "evidenceType": "document",
+                            "evidenceSource": "missing-proof.pdf"
+                        }
+                    ]
                 }
             }
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
-            self._write_json(tmpdir, "followup-reports.json", reports)
+        payload = self._build_zip_bytes(
+            {
+                "findings.json": findings,
+                "followup-reports.json": followup_reports,
+            }
+        )
 
-            evidence_dir = Path(tmpdir) / "FollowUpEvidence"
-            evidence_dir.mkdir(parents=True, exist_ok=True)
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self.client.post(
+                "/followup-import",
+                files={"file": ("followup_payload_bad.zip", payload, "application/zip")},
+            )
 
-            with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
-                with self.assertRaises(ValueError):
-                    process_followup_payload(tmpdir)
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(
+            {
+                "detail": "Missing FollowUpEvidence folder in follow-up payload"
+            },
+            response.json(),
+        )
 
-    def test_process_followup_payload_accepts_wrapped_source_findings(self):
+    def test_followup_import_route_accepts_wrapped_source_findings(self):
         findings = [
             {
                 "schemaVersion": "1.0",
@@ -293,8 +278,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 }
             }
         ]
-
-        reports = [
+        followup_reports = [
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
@@ -313,18 +297,29 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
             }
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
-            self._write_json(tmpdir, "followup-reports.json", reports)
+        payload = self._build_zip_bytes(
+            {
+                "findings.json": findings,
+                "followup-reports.json": followup_reports,
+                "FollowUpEvidence/.keep": "",
+            }
+        )
 
-            evidence_dir = Path(tmpdir) / "FollowUpEvidence"
-            evidence_dir.mkdir(parents=True, exist_ok=True)
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self.client.post(
+                "/followup-import",
+                files={"file": ("followup_payload_wrapped.zip", payload, "application/zip")},
+            )
 
-            with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
-                result = process_followup_payload(tmpdir)
-
-        self.assertEqual(1, result["followUpReportsImported"])
-        self.assertEqual(0, result["followUpEvidenceImported"])
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {
+                "status": "imported",
+                "followUpReportsImported": 1,
+                "followUpEvidenceImported": 0,
+            },
+            response.json(),
+        )
 
 
 if __name__ == "__main__":

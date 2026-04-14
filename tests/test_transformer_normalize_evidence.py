@@ -198,7 +198,7 @@ class BuildFindingsFromSessionTests(unittest.TestCase):
         findings = _build_findings_from_session(session_data, checklist)
 
         self.assertEqual(1, len(findings))
-        self.assertEqual("MDPP-VIG-2026-01", findings[0]["finding"]["findingId"])
+        self.assertEqual("MDPP-VIG-2026-01-01", findings[0]["finding"]["findingId"])
         self.assertEqual("Question text", findings[0]["finding"]["requirementBreached"])
         self.assertEqual("2026-03-26", findings[0]["finding"]["dateIssued"])
 

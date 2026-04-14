@@ -57,6 +57,7 @@ Service endpoint:
 
 ```text
 http://127.0.0.1:8000/inspection-import
+http://127.0.0.1:8000/followup-import
 ```
 
 ### Credential resolution order
@@ -111,14 +112,27 @@ A successful run returns JSON similar to:
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)
 - `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
-- `finding.findingId`: `XXXX-DDD-YYYY-NN` (example: `MDPP-VIG-2026-01`)
+- `finding.findingId`: `XXXX-DDD-YYYY-NN-MM` for findings generated from `session.json` (example: `MDPP-VIG-2026-01-01`)
+- `finding.findingId`: legacy `XXXX-DDD-YYYY-NN` remains accepted for existing findings
 - `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
 - `finding.locationCode`: populated during import from `checklist.checklist.icaoCode`
 - `finding.findingLevel`: one of `Non-Compliance`, `Observation`, `Recommendation`
 
+## Follow-up payload contract
+- Follow-up payloads are uploaded to `/followup-import`.
+- ZIP contents must include all of the following:
+  - `findings.json` with previous findings (source findings for linking)
+  - `followup-reports.json` with follow-up reports
+  - `FollowUpEvidence/` directory with report evidence files
+- Each follow-up report is imported as its own document and linked to previous findings by `findingId` and `capId`.
+- `capId` must match `correctiveAction.capId` from the corresponding finding in `findings.json`.
+
 ## Schemas
 - Checklist schema: `schema/checklist.schema.json`
 - Finding schema: `schema/finding.schema.json`
+- Session schema: `schema/session.schema.json`
+- Follow-up report schema: `schema/followup-report.schema.json`
+- Follow-up source finding schema: `schema/followup-source-finding.schema.json`
 
 ## Troubleshooting
 

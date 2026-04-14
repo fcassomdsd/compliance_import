@@ -3,7 +3,13 @@ import re
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
-from models import validate_checklist, validate_findings, validate_session
+from models import (
+    validate_checklist,
+    validate_findings,
+    validate_followup_reports,
+    validate_followup_source_findings,
+    validate_session,
+)
 
 
 def _find_file(root_path, filename):
@@ -55,6 +61,41 @@ def _load_session(root_path):
         return json.load(f)
 
 
+def _load_followup_reports(root_path):
+
+    reports_file = _find_file(root_path, "followup-reports.json")
+
+    if reports_file is None:
+        raise FileNotFoundError("Missing followup-reports.json in follow-up payload")
+
+    with reports_file.open() as f:
+        data = json.load(f)
+
+    if not isinstance(data, list):
+        raise ValueError("followup-reports.json must contain an array of report objects")
+
+    return data
+
+
+def _load_followup_source_findings(root_path):
+
+    findings_file = _find_file(root_path, "findings.json")
+
+    if findings_file is None:
+        raise FileNotFoundError("Missing findings.json in follow-up payload")
+
+    with findings_file.open() as f:
+        data = json.load(f)
+
+    if isinstance(data, list):
+        return data
+
+    if isinstance(data, dict):
+        return [data]
+
+    raise ValueError("findings.json must contain an object or an array of objects")
+
+
 def _find_evidence_files(root_path):
 
     evidence_files = []
@@ -70,6 +111,29 @@ def _find_evidence_files(root_path):
             continue
 
         evidence_files.append(file_path)
+
+    return evidence_files
+
+
+def _find_followup_evidence_files(root_path):
+
+    evidence_root = _find_file(root_path, "FollowUpEvidence")
+
+    if evidence_root is None:
+        candidate_dir = None
+        for path in sorted(Path(root_path).rglob("*")):
+            if path.is_dir() and path.name == "FollowUpEvidence":
+                candidate_dir = path
+                break
+        evidence_root = candidate_dir
+
+    if evidence_root is None or not evidence_root.is_dir():
+        raise FileNotFoundError("Missing FollowUpEvidence folder in follow-up payload")
+
+    evidence_files = []
+    for file_path in sorted(evidence_root.rglob("*")):
+        if file_path.is_file():
+            evidence_files.append(file_path)
 
     return evidence_files
 
@@ -122,6 +186,19 @@ def _extract_date(value):
     return match.group(1)
 
 
+def _parse_inspection_code_parts(inspection_code):
+
+    if not isinstance(inspection_code, str):
+        return ("UNKN", "0000", "00")
+
+    parts = inspection_code.split("-")
+    prefix = parts[0] if len(parts) > 0 and parts[0] else "UNKN"
+    year = parts[1] if len(parts) > 1 and parts[1] else "0000"
+    sequence = parts[2] if len(parts) > 2 and parts[2] else "00"
+
+    return (prefix, year, sequence)
+
+
 def _build_findings_from_session(session_data, checklist):
 
     summary = session_data.get("summary", {})
@@ -141,8 +218,9 @@ def _build_findings_from_session(session_data, checklist):
     inspection_code = checklist_data.get("inspectionCode", "")
     specialty_code = checklist_data.get("specialtyCode", "")
 
-    inspection_prefix = inspection_code.split("-")[0] if "-" in inspection_code else "UNKN"
-    inspection_year = inspection_code.split("-")[1] if len(inspection_code.split("-")) > 1 else "0000"
+    inspection_prefix, inspection_year, inspection_sequence = _parse_inspection_code_parts(
+        inspection_code
+    )
 
     date_issued = _extract_date(summary.get("lastUpdated"))
 
@@ -174,7 +252,9 @@ def _build_findings_from_session(session_data, checklist):
             )
 
         counter += 1
-        finding_id = f"{inspection_prefix}-{specialty_code}-{inspection_year}-{counter:02d}"
+        finding_id = (
+            f"{inspection_prefix}-{specialty_code}-{inspection_year}-{inspection_sequence}-{counter:02d}"
+        )
 
         finding_data = {
             "findingId": finding_id,
@@ -260,6 +340,85 @@ def _enrich_findings_with_item_code(findings, checklist):
     return findings
 
 
+def _normalize_findings_for_followup(source_findings):
+
+    normalized_findings = []
+
+    for finding in source_findings:
+        if not isinstance(finding, dict):
+            continue
+
+        if "finding" in finding and isinstance(finding["finding"], dict):
+            normalized_findings.append(finding["finding"])
+            continue
+
+        normalized_findings.append(finding)
+
+    return normalized_findings
+
+
+def _build_followup_reports(source_findings, followup_reports):
+
+    normalized_findings = _normalize_findings_for_followup(source_findings)
+    finding_id_to_finding = {}
+
+    for finding in normalized_findings:
+        finding_id = finding.get("findingId")
+        if finding_id:
+            finding_id_to_finding[finding_id] = finding
+
+    result = []
+
+    for report in followup_reports:
+        report_data = report.get("followUpReport", {})
+        finding_id = report_data.get("findingId")
+
+        source_finding = finding_id_to_finding.get(finding_id)
+        if source_finding is None:
+            raise ValueError(
+                f"Could not map follow-up report findingId '{finding_id}' to findings.json"
+            )
+
+        corrective_action = source_finding.get("correctiveAction") or {}
+        source_cap_id = corrective_action.get("capId")
+        report_cap_id = report_data.get("capId")
+
+        if not source_cap_id:
+            raise ValueError(
+                f"Could not map follow-up report findingId '{finding_id}' because source finding has no correctiveAction.capId"
+            )
+
+        if report_cap_id != source_cap_id:
+            raise ValueError(
+                f"Could not map follow-up report for findingId '{finding_id}': capId '{report_cap_id}' does not match source capId '{source_cap_id}'"
+            )
+
+        result.append(report)
+
+    return result
+
+
+def _validate_followup_evidence_sources(reports, evidence_files):
+
+    evidence_name_to_file = {}
+
+    for evidence_file in evidence_files:
+        evidence_name_to_file[evidence_file.name] = evidence_file
+
+    for report in reports:
+        report_data = report.get("followUpReport", {})
+        finding_id = report_data.get("findingId")
+
+        for evidence in report_data.get("evidence", []):
+            source_name = evidence.get("evidenceSource")
+            if source_name not in evidence_name_to_file:
+                raise FileNotFoundError(
+                    f"Missing FollowUpEvidence file '{source_name}' referenced by follow-up report findingId '{finding_id}'"
+                )
+
+    return evidence_name_to_file
+
+
 def process_inspection(path):
 
     checklist_path = _find_file(path, "checklist.json")
@@ -300,4 +459,60 @@ def process_inspection(path):
         "inspectionId": checklist["checklist"]["inspectionId"],
         "findingsImported": len(findings),
         "evidenceImported": len(evidence_files)
+    }
+
+
+def process_followup_payload(path):
+
+    source_findings = _load_followup_source_findings(path)
+    followup_reports = _load_followup_reports(path)
+    evidence_files = _find_followup_evidence_files(path)
+
+    validate_followup_source_findings(source_findings)
+    validate_followup_reports(followup_reports)
+
+    reports = _build_followup_reports(source_findings, followup_reports)
+    _validate_followup_evidence_sources(reports, evidence_files)
+
+    normalized_findings = _normalize_findings_for_followup(source_findings)
+    finding_id_to_specialty_name = {}
+    for finding in normalized_findings:
+        finding_id = finding.get("findingId")
+        specialty_name = finding.get("specialtyName")
+        if finding_id and specialty_name:
+            finding_id_to_specialty_name[finding_id] = specialty_name
+
+    alf = AlfrescoClient()
+
+    for report in reports:
+        report_data = report.get("followUpReport", {})
+        finding_id = report_data.get("findingId")
+        specialty_name = finding_id_to_specialty_name.get(finding_id)
+        if specialty_name is None:
+            raise ValueError(
+                f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
+            )
+
+        alf.store_followup_report_document(report, specialty_name)
+
+    uploaded_evidence = 0
+    evidence_name_to_file = {file_path.name: file_path for file_path in evidence_files}
+
+    for report in reports:
+        report_data = report.get("followUpReport", {})
+        finding_id = report_data.get("findingId")
+        specialty_name = finding_id_to_specialty_name.get(finding_id)
+
+        for evidence in report_data.get("evidence", []):
+            evidence_source = evidence.get("evidenceSource")
+            evidence_file = evidence_name_to_file.get(evidence_source)
+            if evidence_file is None:
+                continue
+
+            alf.store_followup_evidence_file(specialty_name, evidence_file)
+            uploaded_evidence += 1
+
+    return {
+        "followUpReportsImported": len(reports),
+        "followUpEvidenceImported": uploaded_evidence,
     }

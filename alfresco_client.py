@@ -172,7 +172,41 @@ class AlfrescoClient:
         return self.upload_json_document(filename, finding, specialty_name)
 
 
+    def store_followup_report_document(self, followup_report, specialty_name):
+
+        report_data = followup_report["followUpReport"]
+        finding_id = report_data["findingId"]
+        cap_id = report_data["capId"]
+        filename = f"FollowUp {finding_id} CAP-{cap_id}"
+        return self.upload_json_document(filename, followup_report, specialty_name)
+
+
     def store_evidence_file(self, specialty_name, filepath):
+
+        self._ensure_specialty_folder(specialty_name)
+
+        with open(filepath, "rb") as evidence_file:
+            files = {
+                "filedata": (filepath.name, evidence_file)
+            }
+
+            data = {
+                "name": filepath.name,
+                "nodeType": "cm:content",
+                "relativePath": f"{self.canonical_json_path}/{specialty_name}",
+                "autoRename": "true"
+            }
+
+            response = self._post(
+                f"{self.base_url}/nodes/-root-/children",
+                data=data,
+                files=files
+            )
+
+        return response.json()
+
+
+    def store_followup_evidence_file(self, specialty_name, filepath):
 
         self._ensure_specialty_folder(specialty_name)
 
