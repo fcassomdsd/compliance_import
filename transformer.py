@@ -79,10 +79,10 @@ def _load_followup_reports(root_path):
 
 def _load_followup_source_findings(root_path):
 
-    findings_file = _find_file(root_path, "findings.json")
+    findings_file = _find_file(root_path, "prior-findings.json")
 
     if findings_file is None:
-        raise FileNotFoundError("Missing findings.json in follow-up payload")
+        raise FileNotFoundError("Missing prior-findings.json in follow-up payload")
 
     with findings_file.open() as f:
         data = json.load(f)
@@ -166,7 +166,13 @@ def _normalize_checklist_evidence(checklist):
 
 def _extract_question_text(item):
 
-    for field_name in ("requirement", "questionText", "question", "text"):
+    for field_name in (
+        "requirementText",
+        "requirement",
+        "questionText",
+        "question",
+        "text",
+    ):
         value = item.get(field_name)
         if isinstance(value, str) and value.strip():
             return value
@@ -289,10 +295,14 @@ def _build_findings_from_session(session_data, checklist):
 def _enrich_findings_with_item_code(findings, checklist):
 
     item_id_to_item = {}
+    item_code_to_item = {}
     checklist_data = checklist.get("checklist", {})
     checklist_specialty_id = checklist_data.get("specialtyId")
     checklist_specialty_code = checklist_data.get("specialtyCode")
     checklist_specialty_name = checklist_data.get("specialtyName")
+    checklist_provider_id = checklist_data.get("providerId")
+    checklist_location_id = checklist_data.get("locationId")
+    checklist_location_name = checklist_data.get("locationName")
     checklist_location_code = checklist_data.get("icaoCode")
 
     for item in checklist.get("items", []):
@@ -300,27 +310,37 @@ def _enrich_findings_with_item_code(findings, checklist):
             continue
 
         item_id = item.get("itemId")
+        item_code = item.get("itemCode")
 
         if item_id:
             item_id_to_item[item_id] = item
+        if item_code:
+            item_code_to_item[item_code] = item
 
     for finding in findings:
         finding_data = finding.get("finding", {})
         item_id = finding_data.get("itemId")
+        item_code = finding_data.get("itemCode")
 
         item = item_id_to_item.get(item_id)
+        if item is None and item_code is not None:
+            item = item_code_to_item.get(item_code)
         if item is None:
             raise ValueError(
-                f"Could not map finding itemId '{item_id}' to a checklist itemCode"
+                "Could not map finding to checklist item using itemId "
+                f"'{item_id}' or itemCode '{item_code}'"
             )
 
-        item_code = item.get("itemCode")
-        if item_code is None:
+        mapped_item_code = item.get("itemCode")
+        if mapped_item_code is None:
             raise ValueError(
                 f"Could not map finding itemId '{item_id}' to a checklist itemCode"
             )
 
-        finding_data["itemCode"] = item_code
+        if "itemId" not in finding_data and item.get("itemId") is not None:
+            finding_data["itemId"] = item.get("itemId")
+
+        finding_data["itemCode"] = mapped_item_code
         requirement_text = _extract_question_text(item)
         if requirement_text is not None:
             finding_data["requirementBreached"] = requirement_text
@@ -333,6 +353,15 @@ def _enrich_findings_with_item_code(findings, checklist):
 
         if "specialtyName" not in finding_data and checklist_specialty_name is not None:
             finding_data["specialtyName"] = checklist_specialty_name
+
+        if "providerId" not in finding_data and checklist_provider_id is not None:
+            finding_data["providerId"] = checklist_provider_id
+
+        if "locationId" not in finding_data and checklist_location_id is not None:
+            finding_data["locationId"] = checklist_location_id
+
+        if "locationName" not in finding_data and checklist_location_name is not None:
+            finding_data["locationName"] = checklist_location_name
 
         if "locationCode" not in finding_data and checklist_location_code is not None:
             finding_data["locationCode"] = checklist_location_code
@@ -383,12 +412,7 @@ def _build_followup_reports(source_findings, followup_reports):
         source_cap_id = corrective_action.get("capId")
         report_cap_id = report_data.get("capId")
 
-        if not source_cap_id:
-            raise ValueError(
-                f"Could not map follow-up report findingId '{finding_id}' because source finding has no correctiveAction.capId"
-            )
-
-        if report_cap_id != source_cap_id:
+        if source_cap_id and report_cap_id != source_cap_id:
             raise ValueError(
                 f"Could not map follow-up report for findingId '{finding_id}': capId '{report_cap_id}' does not match source capId '{source_cap_id}'"
             )
@@ -410,7 +434,7 @@ def _validate_followup_evidence_sources(reports, evidence_files):
         finding_id = report_data.get("findingId")
 
         for evidence in report_data.get("evidence", []):
-            source_name = evidence.get("evidenceSource")
+            source_name = evidence.get("source") or evidence.get("evidenceSource")
             if source_name not in evidence_name_to_file:
                 raise FileNotFoundError(
                     f"Missing FollowUpEvidence file '{source_name}' referenced by follow-up report findingId '{finding_id}'"
@@ -504,7 +528,7 @@ def process_followup_payload(path):
         specialty_name = finding_id_to_specialty_name.get(finding_id)
 
         for evidence in report_data.get("evidence", []):
-            evidence_source = evidence.get("evidenceSource")
+            evidence_source = evidence.get("source") or evidence.get("evidenceSource")
             evidence_file = evidence_name_to_file.get(evidence_source)
             if evidence_file is None:
                 continue

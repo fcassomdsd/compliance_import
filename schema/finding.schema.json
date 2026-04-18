@@ -9,7 +9,7 @@
     },
     "finding": {
       "type": "object",
-      "required": ["findingId", "specialtyId", "providerId", "locationId", "locationName", "locationCode", "itemId", "itemCode", "description"],
+      "required": ["findingId", "providerId", "locationId", "locationName", "itemCode", "description"],
       "properties": {
         "findingId": {
           "type": "string",
@@ -28,6 +28,7 @@
           "pattern": "^[A-Z]{3}-\\d{4}$"
         },
         "requirementBreached": { "type": "string" },
+        "regulationBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": {
           "type": "string",
@@ -35,6 +36,10 @@
         },
         "description": { "type": "string" },
         "riskLevel": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "riskClassification": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]
         }

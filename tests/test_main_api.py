@@ -169,7 +169,7 @@ class ImportInspectionApiTests(unittest.TestCase):
 
         payload = self._build_zip_bytes(
             {
-                "findings.json": findings,
+                "prior-findings.json": findings,
                 "followup-reports.json": followup_reports,
                 "FollowUpEvidence/proof.pdf": "binary-content",
             }
@@ -237,7 +237,7 @@ class ImportInspectionApiTests(unittest.TestCase):
 
         payload = self._build_zip_bytes(
             {
-                "findings.json": findings,
+                "prior-findings.json": findings,
                 "followup-reports.json": followup_reports,
             }
         )
@@ -299,7 +299,7 @@ class ImportInspectionApiTests(unittest.TestCase):
 
         payload = self._build_zip_bytes(
             {
-                "findings.json": findings,
+                "prior-findings.json": findings,
                 "followup-reports.json": followup_reports,
                 "FollowUpEvidence/.keep": "",
             }

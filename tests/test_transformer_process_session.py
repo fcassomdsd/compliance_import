@@ -204,7 +204,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
+            self._write_json(tmpdir, "prior-findings.json", findings)
             self._write_json(tmpdir, "followup-reports.json", reports)
 
             evidence_dir = Path(tmpdir) / "FollowUpEvidence"
@@ -261,7 +261,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
+            self._write_json(tmpdir, "prior-findings.json", findings)
             self._write_json(tmpdir, "followup-reports.json", reports)
 
             evidence_dir = Path(tmpdir) / "FollowUpEvidence"
@@ -314,7 +314,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            self._write_json(tmpdir, "findings.json", findings)
+            self._write_json(tmpdir, "prior-findings.json", findings)
             self._write_json(tmpdir, "followup-reports.json", reports)
 
             evidence_dir = Path(tmpdir) / "FollowUpEvidence"

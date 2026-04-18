@@ -18,14 +18,16 @@
         "findingClosed",
         "percentComplete",
         "effectivenessConfirmed",
-        "specialtyId",
-        "capId",
-        "evidence"
+        "specialtyId"
       ],
       "properties": {
         "findingId": {
           "type": "string",
           "pattern": "^[A-Z0-9]{4}-[A-Z]{3}-\\d{4}-\\d{2}(?:-\\d{2})?$"
+        },
+        "followUpId": {
+          "type": "string",
+          "pattern": "^FU-.*-\\d{4}-\\d{2}-\\d{2}$"
         },
         "providerId": { "type": "string" },
         "locationId": { "type": "string" },
@@ -40,17 +42,24 @@
         "effectivenessConfirmed": { "type": "boolean" },
         "specialtyId": { "type": "string" },
         "capId": { "type": "string" },
+        "notes": { "type": "string" },
         "evidence": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["evidenceId", "evidenceType", "evidenceSource"],
+            "required": ["evidenceId"],
             "properties": {
               "evidenceId": { "type": "string" },
               "evidenceType": { "type": "string" },
-              "evidenceSource": { "type": "string" }
-            },
-            "additionalProperties": false
+              "evidenceSource": { "type": "string" },
+              "source": { "type": "string" },
+              "hashValue": {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              "immutable": { "type": "boolean" },
+              "sealedDate": { "type": "string", "format": "date-time" }
+            }
           }
         }
       },
