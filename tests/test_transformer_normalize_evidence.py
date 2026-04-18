@@ -151,6 +151,46 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _enrich_findings_with_item_code(findings, checklist)
 
+    def test_maps_finding_by_item_code_when_item_id_is_missing(self):
+        checklist = {
+            "checklist": {
+                "icaoCode": "MDPP",
+                "providerId": "provider-1",
+                "locationId": "location-1",
+                "locationName": "Location",
+                "specialtyId": "specialty-1",
+                "specialtyCode": "VIG",
+                "specialtyName": "Vigilancia",
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "VIG-0001",
+                    "requirementText": "Requirement text",
+                    "complianceStatus": "Compliant",
+                }
+            ]
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": "ABCD-VIG-2026-01",
+                    "itemCode": "VIG-0001",
+                    "description": "desc",
+                },
+            }
+        ]
+
+        enriched = _enrich_findings_with_item_code(findings, checklist)
+
+        self.assertEqual("item-1", enriched[0]["finding"]["itemId"])
+        self.assertEqual("provider-1", enriched[0]["finding"]["providerId"])
+        self.assertEqual("location-1", enriched[0]["finding"]["locationId"])
+        self.assertEqual("Location", enriched[0]["finding"]["locationName"])
+        self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
+        self.assertEqual("Requirement text", enriched[0]["finding"]["requirementBreached"])
+
 
 class BuildFindingsFromSessionTests(unittest.TestCase):
 

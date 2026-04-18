@@ -38,7 +38,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["itemId", "itemCode", "compliance"],
+        "required": ["itemId", "itemCode"],
         "properties": {
           "itemId": { "type": "string" },
           "itemCode": {
@@ -46,8 +46,11 @@
             "pattern": "^[A-Z]{3}-\\d{4}$"
           },
           "requirement": { "type": "string" },
+          "requirementText": { "type": "string" },
           "verificationMethod": { "type": "string" },
+          "itemVerificationMethod": { "type": "string" },
           "comment": { "type": "string" },
+          "inspectorComment": { "type": "string" },
           "reference": {
             "type": "object",
             "properties": {
@@ -59,7 +62,15 @@
             "type": "string",
             "enum": ["Compliant", "Non-compliant", "Not applicable"]
           },
+          "complianceStatus": {
+            "type": "string",
+            "enum": ["Compliant", "Non-Compliant", "Not Applicable"]
+          },
           "riskLevel": {
+            "type": "string",
+            "enum": ["Low", "Medium", "High", "Critical"]
+          },
+          "nominalRisk": {
             "type": "string",
             "enum": ["Low", "Medium", "High", "Critical"]
           },
@@ -71,7 +82,14 @@
                 "properties": {
                   "evidenceId": { "type": "string" },
                   "evidenceType": { "type": "string" },
-                  "evidenceSource": { "type": "string" }
+                  "evidenceSource": { "type": "string" },
+                  "source": { "type": "string" },
+                  "hashValue": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "immutable": { "type": "boolean" },
+                  "sealedDate": { "type": "string", "format": "date-time" }
                 }
               }
           }
