@@ -1,6 +1,7 @@
 import unittest
 
 from alfresco_client import AlfrescoClient
+from id_utils import build_followup_id
 
 
 class FollowupReportIdTests(unittest.TestCase):
@@ -20,7 +21,7 @@ class FollowupReportIdTests(unittest.TestCase):
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP-VIG-2025-02",
+                "findingId": "MDPP001-VIG-01",
                 "followUpId": "FU-CUSTOM-123",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
@@ -29,7 +30,7 @@ class FollowupReportIdTests(unittest.TestCase):
         result = client.store_followup_report_document(report, "Vigilancia")
 
         self.assertEqual("FU-CUSTOM-123", report["followUpReport"]["followUpId"])
-        self.assertEqual("FollowUp MDPP-VIG-2025-02 2026-04-14", result["filename"])
+        self.assertEqual("FollowUp MDPP001-VIG-01 2026-04-14", result["filename"])
 
     def test_store_followup_report_document_generates_followup_id_when_missing(self):
         client = self._build_client()
@@ -37,7 +38,7 @@ class FollowupReportIdTests(unittest.TestCase):
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP-VIG-2025-02",
+                "findingId": "MDPP001-VIG-01",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
@@ -45,7 +46,7 @@ class FollowupReportIdTests(unittest.TestCase):
         client.store_followup_report_document(report, "Vigilancia")
 
         self.assertEqual(
-            "FU-MDPP-VIG-2025-02-2026-04-14",
+            build_followup_id("MDPP001-VIG-01", "2026-04-14T15:36:28.825Z"),
             report["followUpReport"]["followUpId"],
         )
 
