@@ -14,17 +14,20 @@
         "inspectionId": { "type": "string" },
         "inspectionCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{4}-\\d{4}-\\d{2}$"
+          "pattern": "^[A-Z0-9]{4}-\\d{3}$"
         },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
         "icaoCode": { "type": "string" },
         "specialtyId": { "type": "string" },
-        "specialtyCode": { "type": "string" },
+        "specialtyCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{3,6}$"
+        },
         "specialtyName": { "type": "string" },
         "checklistId": {
           "type": "string",
-          "pattern": "^CHK-[A-Z0-9]{4}-\\d{4}-\\d{2}-[A-Z]{3}$"
+          "pattern": "^CHK-[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}$"
         },
         "providerId": { "type": "string" },
         "providerName": { "type": "string" },

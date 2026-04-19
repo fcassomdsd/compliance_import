@@ -10,7 +10,7 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-2026-01",
+                "inspectionCode": "MDPP-001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "locationName": "Aeropuerto Internacional Gregorio Luperon",
@@ -34,7 +34,7 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-2026-01",
+                "inspectionCode": "MDPP-001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "specialtyCode": "VIG",

@@ -1,5 +1,6 @@
 import unittest
 
+from id_utils import build_finding_id
 from transformer import (
     _build_findings_from_session,
     _enrich_findings_with_item_code,
@@ -8,6 +9,8 @@ from transformer import (
 
 
 MISSING = object()
+ABCD_FINDING_ID = build_finding_id("ABCD-001", "VIG", 1)
+MDPP_FINDING_ID = build_finding_id("MDPP-001", "VIG", 1)
 
 
 class NormalizeChecklistEvidenceTests(unittest.TestCase):
@@ -26,7 +29,7 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "id-1",
-                "inspectionCode": "ABCD-2026-01",
+                "inspectionCode": "ABCD-001",
                 "specialtyId": "specialty-1",
                 "specialtyCode": "VIG",
                 "specialtyName": "Vigilancia",
@@ -106,7 +109,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "finding": {
-                    "findingId": "ABCD-VIG-2026-01",
+                    "findingId": ABCD_FINDING_ID,
                     "specialtyId": "specialty-1",
                     "providerId": "provider-1",
                     "locationId": "location-1",
@@ -137,7 +140,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "finding": {
-                    "findingId": "ABCD-VIG-2026-01",
+                    "findingId": ABCD_FINDING_ID,
                     "specialtyId": "specialty-1",
                     "providerId": "provider-1",
                     "locationId": "location-1",
@@ -175,7 +178,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "finding": {
-                    "findingId": "ABCD-VIG-2026-01",
+                    "findingId": ABCD_FINDING_ID,
                     "itemCode": "VIG-0001",
                     "description": "desc",
                 },
@@ -197,7 +200,7 @@ class BuildFindingsFromSessionTests(unittest.TestCase):
     def test_builds_findings_from_non_conformities(self):
         checklist = {
             "checklist": {
-                "inspectionCode": "MDPP-2026-01",
+                "inspectionCode": "MDPP-001",
                 "specialtyId": "specialty-1",
                 "specialtyCode": "VIG",
                 "specialtyName": "Vigilancia",
@@ -238,14 +241,14 @@ class BuildFindingsFromSessionTests(unittest.TestCase):
         findings = _build_findings_from_session(session_data, checklist)
 
         self.assertEqual(1, len(findings))
-        self.assertEqual("MDPP-VIG-2026-01-01", findings[0]["finding"]["findingId"])
+        self.assertEqual(MDPP_FINDING_ID, findings[0]["finding"]["findingId"])
         self.assertEqual("Question text", findings[0]["finding"]["requirementBreached"])
         self.assertEqual("2026-03-26", findings[0]["finding"]["dateIssued"])
 
     def test_skips_responses_without_description_or_finding_level(self):
         checklist = {
             "checklist": {
-                "inspectionCode": "MDPP-2026-01",
+                "inspectionCode": "MDPP-001",
                 "specialtyCode": "VIG",
             },
             "items": [

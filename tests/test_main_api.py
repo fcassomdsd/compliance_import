@@ -5,8 +5,15 @@ import zipfile
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from id_utils import build_corrective_action_id, build_finding_id
 
 from main import app
+
+
+INSPECTION_CODE = "MDPP-001"
+SPECIALTY_CODE = "VIG"
+FINDING_ID = build_finding_id(INSPECTION_CODE, SPECIALTY_CODE, 1)
+CAP_ID = build_corrective_action_id(FINDING_ID, 1)
 
 
 class FakeAlfrescoClient:
@@ -62,12 +69,12 @@ class ImportInspectionApiTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-2026-01",
+                "inspectionCode": INSPECTION_CODE,
                 "locationId": "location-1",
                 "locationName": "Aeropuerto",
                 "icaoCode": "MDPP",
                 "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
                 "providerId": "provider-1"
             },
@@ -126,9 +133,9 @@ class ImportInspectionApiTests(unittest.TestCase):
     def test_followup_import_route_processes_followup_payload(self):
         findings = [
             {
-                "findingId": "MDPP-VIG-2025-02",
+                "findingId": FINDING_ID,
                 "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
                 "providerId": "provider-1",
                 "locationId": "location-1",
@@ -138,7 +145,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "itemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
-                    "capId": "10"
+                    "capId": CAP_ID
                 }
             }
         ]
@@ -146,7 +153,7 @@ class ImportInspectionApiTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
-                    "findingId": "MDPP-VIG-2025-02",
+                    "findingId": FINDING_ID,
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
@@ -155,7 +162,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
-                    "capId": "10",
+                    "capId": CAP_ID,
                     "evidence": [
                         {
                             "evidenceId": "FUEV-0001-01",
@@ -194,9 +201,9 @@ class ImportInspectionApiTests(unittest.TestCase):
     def test_followup_import_route_rejects_followup_payload_with_missing_evidence(self):
         findings = [
             {
-                "findingId": "MDPP-VIG-2025-02",
+                "findingId": FINDING_ID,
                 "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
                 "providerId": "provider-1",
                 "locationId": "location-1",
@@ -206,7 +213,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "itemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
-                    "capId": "10"
+                    "capId": CAP_ID
                 }
             }
         ]
@@ -214,7 +221,7 @@ class ImportInspectionApiTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
-                    "findingId": "MDPP-VIG-2025-02",
+                    "findingId": FINDING_ID,
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
@@ -223,7 +230,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
-                    "capId": "10",
+                    "capId": CAP_ID,
                     "evidence": [
                         {
                             "evidenceId": "FUEV-0001-01",
@@ -261,9 +268,9 @@ class ImportInspectionApiTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "finding": {
-                    "findingId": "MDPP-VIG-2025-02",
+                    "findingId": FINDING_ID,
                     "specialtyId": "specialty-1",
-                    "specialtyCode": "VIG",
+                    "specialtyCode": SPECIALTY_CODE,
                     "specialtyName": "Vigilancia",
                     "providerId": "provider-1",
                     "locationId": "location-1",
@@ -273,7 +280,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "itemCode": "VIG-0001",
                     "description": "desc",
                     "correctiveAction": {
-                        "capId": "10"
+                        "capId": CAP_ID
                     }
                 }
             }
@@ -282,7 +289,7 @@ class ImportInspectionApiTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "followUpReport": {
-                    "findingId": "MDPP-VIG-2025-02",
+                    "findingId": FINDING_ID,
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
@@ -291,7 +298,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
-                    "capId": "10",
+                    "capId": CAP_ID,
                     "evidence": []
                 }
             }

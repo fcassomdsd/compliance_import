@@ -2,7 +2,7 @@
   {
     "schemaVersion": "1.0",
     "finding": {
-      "findingId": "MDPP-VIG-2026-01",
+      "findingId": "MDPP001-VIG-01",
       "specialtyId": "a01k-specialty-vig-0001",
       "specialtyCode": "VIG",
       "specialtyName": "Vigilancia",
@@ -20,7 +20,7 @@
   {
     "schemaVersion": "1.0",
     "finding": {
-      "findingId": "MDPP-VIG-2026-02",
+      "findingId": "MDPP001-VIG-02",
       "specialtyId": "a01k-specialty-vig-0001",
       "specialtyCode": "VIG",
       "specialtyName": "Vigilancia",

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import requests
+from id_utils import build_followup_id
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -177,19 +178,17 @@ class AlfrescoClient:
         report_data = followup_report["followUpReport"]
         finding_id = report_data["findingId"]
         followup_date = report_data.get("followUpDate", "")
-        
-        # Extract YYYY-MM-DD from ISO datetime format
-        date_part = followup_date.split("T")[0] if followup_date else "UNKNOWN"
+        date_part = followup_date.split("T")[0] if isinstance(followup_date, str) and followup_date else "UNKNOWN"
         
         # Reuse source followUpId when provided; otherwise construct a deterministic one.
         followup_id = report_data.get("followUpId")
         if not isinstance(followup_id, str) or not followup_id.strip():
-            followup_id = f"FU-{finding_id}-{date_part}"
+            followup_id = build_followup_id(finding_id, followup_date)
         filename = f"FollowUp {finding_id} {date_part}"
-        
+
         # Add followUpId to report data
         report_data["followUpId"] = followup_id
-        
+
         return self.upload_json_document(filename, followup_report, specialty_name)
 
 

@@ -110,10 +110,12 @@ A successful run returns JSON similar to:
 - `finding.requirementBreached` is auto-populated from the corresponding checklist item question text (`requirement`)
 
 ### Identifier fields
-- `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)
+- `checklist.inspectionCode`: `XXXX-NNN` (example: `MDPP-001`)
 - `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
-- `finding.findingId`: `XXXX-DDD-YYYY-NN-MM` for findings generated from `session.json` (example: `MDPP-VIG-2026-01-01`)
-- `finding.findingId`: legacy `XXXX-DDD-YYYY-NN` remains accepted for existing findings
+- `checklist.checklistId`: `CHK-XXXXNNN-YYY` (example: `CHK-MDPP001-VIG`)
+- `finding.findingId`: `XXXXNNN-YYY-MM` (example: `MDPP001-VIG-01`)
+- `finding.correctiveAction.capId`: `CA-XXXXNNNYYY-MM-SS` (example: `CA-MDPP001VIG-01-01`)
+- `followUpReport.followUpId`: `FU-XXXXNNNYYY-MM-TTTTTT` (example: `FU-MDPP001VIG-01-260401`)
 - `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
 - `finding.locationCode`: populated during import from `checklist.checklist.icaoCode`
 - `finding.findingLevel`: one of `Non-Compliance`, `Observation`, `Recommendation`
