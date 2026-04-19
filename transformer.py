@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
+from id_utils import build_finding_id
 from models import (
     validate_checklist,
     validate_findings,
@@ -192,19 +193,6 @@ def _extract_date(value):
     return match.group(1)
 
 
-def _parse_inspection_code_parts(inspection_code):
-
-    if not isinstance(inspection_code, str):
-        return ("UNKN", "0000", "00")
-
-    parts = inspection_code.split("-")
-    prefix = parts[0] if len(parts) > 0 and parts[0] else "UNKN"
-    year = parts[1] if len(parts) > 1 and parts[1] else "0000"
-    sequence = parts[2] if len(parts) > 2 and parts[2] else "00"
-
-    return (prefix, year, sequence)
-
-
 def _build_findings_from_session(session_data, checklist):
 
     summary = session_data.get("summary", {})
@@ -223,10 +211,6 @@ def _build_findings_from_session(session_data, checklist):
 
     inspection_code = checklist_data.get("inspectionCode", "")
     specialty_code = checklist_data.get("specialtyCode", "")
-
-    inspection_prefix, inspection_year, inspection_sequence = _parse_inspection_code_parts(
-        inspection_code
-    )
 
     date_issued = _extract_date(summary.get("lastUpdated"))
 
@@ -258,9 +242,7 @@ def _build_findings_from_session(session_data, checklist):
             )
 
         counter += 1
-        finding_id = (
-            f"{inspection_prefix}-{specialty_code}-{inspection_year}-{inspection_sequence}-{counter:02d}"
-        )
+        finding_id = build_finding_id(inspection_code, specialty_code, counter)
 
         finding_data = {
             "findingId": finding_id,
@@ -411,6 +393,10 @@ def _build_followup_reports(source_findings, followup_reports):
         corrective_action = source_finding.get("correctiveAction") or {}
         source_cap_id = corrective_action.get("capId")
         report_cap_id = report_data.get("capId")
+
+        if source_cap_id and not report_cap_id:
+            report_data["capId"] = source_cap_id
+            report_cap_id = source_cap_id
 
         if source_cap_id and report_cap_id != source_cap_id:
             raise ValueError(
