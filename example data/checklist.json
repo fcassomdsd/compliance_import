@@ -5,17 +5,13 @@
     "inspectionCode": "MDPP-001",
     "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
     "locationName": "Aeropuerto Internacional Gregorio Luperon",
-    "icaoCode": "MDPP",
+    "locationCode": "MDPP",
     "specialtyId": "a01k-specialty-vig-0001",
     "specialtyCode": "VIG",
     "specialtyName": "Vigilancia",
     "checklistId": "CHK-MDPP001-VIG",
     "providerId": "a01kkq6arvbeef8ssmsd2aqnvyb",
-    "providerName": "DTIC Instituto Dominicano de Aviación Civil",
-    "inspectors": [
-      "Inspector 1",
-      "Inspector 2"
-    ]
+    "providerName": "DTIC Instituto Dominicano de Aviación Civil"
   },
   "items": [
     {
@@ -30,16 +26,16 @@
       },
       "compliance": "Non-compliant",
       "riskLevel": "High",
-      "evidence": [
+      "evidenceItems": [
         {
           "evidenceId": "EV-0003",
           "evidenceType": "document",
-          "evidenceSource": "Base legal CC Art 37.txt"
+          "source": "Base legal CC Art 37.txt"
         },
         {
           "evidenceId": "EV-0004",
           "evidenceType": "image",
-          "evidenceSource": "inspection-photo-1.jpg"
+          "source": "inspection-photo-1.jpg"
         }
       ]
     },
@@ -64,11 +60,11 @@
       "comment": "Equipos observados en estado correcto.",
       "compliance": "Compliant",
       "riskLevel": "Low",
-      "evidence": [
+      "evidenceItems": [
         {
           "evidenceId": "EV-0001",
           "evidenceType": "image",
-          "evidenceSource": "maxresdefault.jpg"
+          "source": "maxresdefault.jpg"
         }
       ]
     }

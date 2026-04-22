@@ -72,7 +72,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "inspectionCode": INSPECTION_CODE,
                 "locationId": "location-1",
                 "locationName": "Aeropuerto",
-                "icaoCode": "MDPP",
+                "locationCode": "MDPP",
                 "specialtyId": "specialty-1",
                 "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
@@ -87,29 +87,28 @@ class ImportInspectionApiTests(unittest.TestCase):
                 }
             ]
         }
-        session_data = {
-            "summary": {
-                "specialty": "Vigilancia",
-                "lastUpdated": "2026-03-26T10:35:00.000Z"
-            },
-            "responses": {
-                "item-1": {
-                    "id": "item-1",
-                    "compliance": "Non-compliant",
-                    "comments": "fallback comments",
-                    "nonConformityDetails": {
-                        "description": "Generated finding description",
-                        "riskLevel": "High",
-                        "findingLevel": "Observation"
-                    }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "VIG-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation"
                 }
             }
-        }
+        ]
 
         payload = self._build_zip_bytes(
             {
                 "checklist.json": checklist,
-                "session.json": session_data,
+                "findings.json": findings,
             }
         )
 
@@ -141,8 +140,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -163,11 +161,11 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "FUEV-0001-01",
                             "evidenceType": "document",
-                            "evidenceSource": "proof.pdf"
+                            "source": "proof.pdf"
                         }
                     ]
                 }
@@ -209,8 +207,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -231,11 +228,11 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "FUEV-0001-01",
                             "evidenceType": "document",
-                            "evidenceSource": "missing-proof.pdf"
+                            "source": "missing-proof.pdf"
                         }
                     ]
                 }
@@ -276,8 +273,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationCode": "MDPP",
                     "locationName": "Location",
-                    "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "checklistItemCode": "VIG-0001",
                     "description": "desc",
                     "correctiveAction": {
                         "capId": CAP_ID
@@ -299,7 +295,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": []
+                    "evidenceItems": []
                 }
             }
         ]

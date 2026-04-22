@@ -45,7 +45,7 @@ class FakeAlfrescoClient:
         self.followup_evidence.append((specialty_name, evidence_file.name))
 
 
-class ProcessInspectionSessionTests(unittest.TestCase):
+class ProcessInspectionPayloadTests(unittest.TestCase):
 
     def setUp(self):
         FakeAlfrescoClient.instances = []
@@ -54,7 +54,7 @@ class ProcessInspectionSessionTests(unittest.TestCase):
         file_path = Path(parent) / filename
         file_path.write_text(json.dumps(payload), encoding="utf-8")
 
-    def test_process_inspection_builds_findings_from_session(self):
+    def test_process_inspection_imports_explicit_findings(self):
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
@@ -62,7 +62,7 @@ class ProcessInspectionSessionTests(unittest.TestCase):
                 "inspectionCode": INSPECTION_CODE,
                 "locationId": "location-1",
                 "locationName": "Aeropuerto",
-                "icaoCode": "MDPP",
+                "locationCode": "MDPP",
                 "specialtyId": "specialty-1",
                 "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
@@ -78,28 +78,27 @@ class ProcessInspectionSessionTests(unittest.TestCase):
             ],
         }
 
-        session_data = {
-            "summary": {
-                "specialty": "Vigilancia",
-                "lastUpdated": "2026-03-26T10:35:00.000Z",
-            },
-            "responses": {
-                "item-1": {
-                    "id": "item-1",
-                    "compliance": "Non-compliant",
-                    "comments": "fallback comments",
-                    "nonConformityDetails": {
-                        "description": "Generated finding description",
-                        "riskLevel": "High",
-                        "findingLevel": "Observation",
-                    },
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "VIG-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation"
                 }
-            },
-        }
+            }
+        ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_json(tmpdir, "checklist.json", checklist)
-            self._write_json(tmpdir, "session.json", session_data)
+            self._write_json(tmpdir, "findings.json", findings)
 
             with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
                 result = process_inspection(tmpdir)
@@ -114,10 +113,10 @@ class ProcessInspectionSessionTests(unittest.TestCase):
 
         finding = client.findings[0]["finding"]
         self.assertEqual("Observation", finding["findingLevel"])
-        self.assertEqual("Question text from checklist", finding["requirementBreached"])
-        self.assertEqual("2026-03-26", finding["dateIssued"])
+        self.assertEqual("Question text from checklist", finding["reglulationBreached"])
+        self.assertEqual("VIG-0001", finding["checklistItemCode"])
 
-    def test_process_inspection_rejects_invalid_session_schema(self):
+    def test_process_inspection_rejects_invalid_finding_schema(self):
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
@@ -125,7 +124,7 @@ class ProcessInspectionSessionTests(unittest.TestCase):
                 "inspectionCode": INSPECTION_CODE,
                 "locationId": "location-1",
                 "locationName": "Aeropuerto",
-                "icaoCode": "MDPP",
+                "locationCode": "MDPP",
                 "specialtyId": "specialty-1",
                 "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
@@ -141,16 +140,22 @@ class ProcessInspectionSessionTests(unittest.TestCase):
             ],
         }
 
-        invalid_session_data = {
-            "summary": {
-                "lastUpdated": "2026-03-26T10:35:00.000Z"
-            },
-            "responses": {},
-        }
+        invalid_findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "description": "Missing checklistItemCode"
+                }
+            }
+        ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_json(tmpdir, "checklist.json", checklist)
-            self._write_json(tmpdir, "session.json", invalid_session_data)
+            self._write_json(tmpdir, "findings.json", invalid_findings)
 
             with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
                 with self.assertRaises(ValidationError):
@@ -177,8 +182,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -200,11 +204,11 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "FUEV-0001-01",
                             "evidenceType": "document",
-                            "evidenceSource": "proof.pdf"
+                            "source": "proof.pdf"
                         }
                     ]
                 }
@@ -240,8 +244,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -262,7 +265,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
-                    "evidence": []
+                    "evidenceItems": []
                 }
             }
         ]
@@ -294,8 +297,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID_MISMATCH
@@ -317,7 +319,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": []
+                    "evidenceItems": []
                 }
             }
         ]
@@ -346,8 +348,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationCode": "MDPP",
                     "locationName": "Location",
-                    "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "checklistItemCode": "VIG-0001",
                     "description": "desc",
                     "correctiveAction": {
                         "capId": CAP_ID
@@ -370,7 +371,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": []
+                    "evidenceItems": []
                 }
             }
         ]
