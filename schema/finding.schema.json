@@ -9,12 +9,14 @@
     },
     "finding": {
       "type": "object",
-      "required": ["findingId", "providerId", "locationId", "locationName", "itemCode", "description"],
+      "required": ["findingId", "providerId", "locationId", "locationName", "checklistItemCode", "description"],
       "properties": {
+        "contentType": { "type": "string" },
         "findingId": {
           "type": "string",
           "pattern": "^[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}-\\d{2}$"
         },
+        "inspectionId": { "type": "string" },
         "specialtyId": { "type": "string" },
         "specialtyCode": {
           "type": "string",
@@ -22,15 +24,17 @@
         },
         "specialtyName": { "type": "string" },
         "providerId": { "type": "string" },
+        "providerName": { "type": "string" },
         "locationId": { "type": "string" },
         "locationName": { "type": "string" },
         "locationCode": { "type": "string" },
-        "itemId": { "type": "string" },
-        "itemCode": {
+        "checklistItemCode": {
           "type": "string",
-          "pattern": "^[A-Z]{3}-\\d{4}$"
+          "pattern": "^[A-Z0-9]{3,6}-\\d{4}$"
         },
-        "requirementBreached": { "type": "string" },
+        "icaoReference": { "type": "string" },
+        "nationalRegulation": { "type": "string" },
+        "reglulationBreached": { "type": "string" },
         "regulationBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": {
@@ -38,10 +42,23 @@
           "enum": ["Non-Compliance", "Observation", "Recommendation"]
         },
         "description": { "type": "string" },
-        "riskLevel": {
+        "findingStatus": {
           "type": "string",
-          "enum": ["Low", "Medium", "High", "Critical"]
+          "enum": [
+            "Open",
+            "CAP Submitted",
+            "CAP Accepted",
+            "In Progress",
+            "Pending Closure Review",
+            "Verifying Effective Closure",
+            "Closed",
+            "Overdue"
+          ]
         },
+        "submissionDeadline": { "type": "string", "format": "date" },
+        "findingClosureDate": { "type": "string", "format": "date" },
+        "lastStatusChange": { "type": "string", "format": "date" },
+        "resolutionDeadline": { "type": "string", "format": "date" },
         "riskClassification": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]

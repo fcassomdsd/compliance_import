@@ -11,14 +11,17 @@
       "type": "object",
       "required": ["inspectionId", "inspectionCode", "specialtyId", "specialtyCode", "specialtyName", "providerId"],
       "properties": {
+        "contentType": { "type": "string" },
         "inspectionId": { "type": "string" },
         "inspectionCode": {
           "type": "string",
           "pattern": "^[A-Z0-9]{4}-\\d{3}$"
         },
+        "scope": { "type": "string" },
+        "completionDate": { "type": "string", "format": "date" },
         "locationId": { "type": "string" },
+        "locationCode": { "type": "string" },
         "locationName": { "type": "string" },
-        "icaoCode": { "type": "string" },
         "specialtyId": { "type": "string" },
         "specialtyCode": {
           "type": "string",
@@ -30,11 +33,7 @@
           "pattern": "^CHK-[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}$"
         },
         "providerId": { "type": "string" },
-        "providerName": { "type": "string" },
-        "inspectors": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "providerName": { "type": "string" }
       }
     },
     "items": {
@@ -42,11 +41,12 @@
       "items": {
         "type": "object",
         "required": ["itemId", "itemCode"],
+        "additionalProperties": false,
         "properties": {
           "itemId": { "type": "string" },
           "itemCode": {
             "type": "string",
-            "pattern": "^[A-Z]{3}-\\d{4}$"
+            "pattern": "^[A-Z0-9]{3,6}-\\d{4}$"
           },
           "requirement": { "type": "string" },
           "requirementText": { "type": "string" },
@@ -77,7 +77,10 @@
             "type": "string",
             "enum": ["Low", "Medium", "High", "Critical"]
           },
-          "evidence": {
+          "hasOpenPriorFinding": {
+            "type": "boolean"
+          },
+          "evidenceItems": {
               "type": "array",
               "items": {
                 "type": "object",
@@ -85,14 +88,23 @@
                 "properties": {
                   "evidenceId": { "type": "string" },
                   "evidenceType": { "type": "string" },
-                  "evidenceSource": { "type": "string" },
                   "source": { "type": "string" },
+                  "collectionDate": { "type": "string", "format": "date" },
                   "hashValue": {
                     "type": "string",
                     "pattern": "^[a-fA-F0-9]{64}$"
                   },
                   "immutable": { "type": "boolean" },
-                  "sealedDate": { "type": "string", "format": "date-time" }
+                  "sealedDate": { "type": "string", "format": "date-time" },
+                  "evidenceRole": {
+                    "type": "string",
+                    "enum": [
+                      "Compliance Evidence",
+                      "Finding Support",
+                      "Progress Evidence",
+                      "Closure Evidence"
+                    ]
+                  }
                 }
               }
           }

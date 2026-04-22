@@ -12,9 +12,6 @@ with (SCHEMA_DIR / "checklist.schema.json").open() as f:
 with (SCHEMA_DIR / "finding.schema.json").open() as f:
     FINDING_SCHEMA = json.load(f)
 
-with (SCHEMA_DIR / "session.schema.json").open() as f:
-    SESSION_SCHEMA = json.load(f)
-
 with (SCHEMA_DIR / "followup-report.schema.json").open() as f:
     FOLLOWUP_REPORT_SCHEMA = json.load(f)
 
@@ -38,11 +35,6 @@ def validate_findings(data):
 
     for finding in data:
         validate_finding(finding)
-
-
-def validate_session(data):
-
-    validate(instance=data, schema=SESSION_SCHEMA)
 
 
 def validate_followup_reports(data):

@@ -21,32 +21,49 @@
         "specialtyId"
       ],
       "properties": {
+        "contentType": { "type": "string" },
         "findingId": {
           "type": "string",
           "pattern": "^[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}-\\d{2}$"
         },
         "followUpId": {
           "type": "string",
-          "pattern": "^FU-[A-Z0-9]{4}\\d{3}[A-Z0-9]{3,6}-\\d{2}-\\d{6}$"
+          "pattern": "^FU-[A-Z0-9]{4}\\d{3}[A-Z0-9]{3,6}-\\d{2}-\\d{2,6}$"
         },
+        "inspectionId": { "type": "string" },
         "providerId": { "type": "string" },
+        "providerName": { "type": "string" },
         "locationId": { "type": "string" },
+        "locationCode": { "type": "string" },
         "locationName": { "type": "string" },
+        "followUpType": {
+          "type": "string",
+          "enum": [
+            "Progress Review",
+            "CAP Verification",
+            "Closure Verification",
+            "Ad-hoc Inquiry"
+          ]
+        },
         "followUpDate": { "type": "string" },
         "findingClosed": { "type": "boolean" },
         "percentComplete": {
-          "type": "number",
+          "type": "integer",
           "minimum": 0,
           "maximum": 100
         },
-        "effectivenessConfirmed": { "type": "boolean" },
+        "followUpClosureDate": { "type": "string", "format": "date" },
+        "closureVerificationMethod": { "type": "string" },
+        "effectivenessConfirmed": { "type": ["boolean", "null"] },
         "specialtyId": { "type": "string" },
+        "specialtyCode": { "type": "string" },
+        "specialtyName": { "type": "string" },
         "capId": {
-          "type": "string",
+          "type": ["string", "null"],
           "pattern": "^CA-[A-Z0-9]{4}\\d{3}[A-Z0-9]{3,6}-\\d{2}-\\d{2}$"
         },
-        "notes": { "type": "string" },
-        "evidence": {
+        "followUpComment": { "type": "string" },
+        "evidenceItems": {
           "type": "array",
           "items": {
             "type": "object",
@@ -54,14 +71,23 @@
             "properties": {
               "evidenceId": { "type": "string" },
               "evidenceType": { "type": "string" },
-              "evidenceSource": { "type": "string" },
               "source": { "type": "string" },
+              "collectionDate": { "type": "string", "format": "date" },
               "hashValue": {
                 "type": "string",
                 "pattern": "^[a-fA-F0-9]{64}$"
               },
               "immutable": { "type": "boolean" },
-              "sealedDate": { "type": "string", "format": "date-time" }
+              "sealedDate": { "type": "string", "format": "date-time" },
+              "evidenceRole": {
+                "type": "string",
+                "enum": [
+                  "Compliance Evidence",
+                  "Finding Support",
+                  "Progress Evidence",
+                  "Closure Evidence"
+                ]
+              }
             }
           }
         }

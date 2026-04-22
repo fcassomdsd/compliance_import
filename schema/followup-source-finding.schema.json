@@ -11,7 +11,7 @@
     "locationId",
     "locationCode",
     "locationName",
-    "itemCode",
+    "checklistItemCode",
     "description"
   ],
   "properties": {
@@ -29,8 +29,8 @@
     "locationId": { "type": "string" },
     "locationCode": { "type": "string" },
     "locationName": { "type": "string" },
-    "itemCode": { "type": "string" },
-    "requirementBreached": { "type": "string" },
+    "checklistItemCode": { "type": "string" },
+    "reglulationBreached": { "type": "string" },
     "dateIssued": { "type": "string" },
     "findingLevel": { "type": "string" },
     "description": { "type": "string" },
