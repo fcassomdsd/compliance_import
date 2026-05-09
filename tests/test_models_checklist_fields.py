@@ -5,7 +5,7 @@ from models import validate_checklist
 
 class ChecklistSchemaFieldsTests(unittest.TestCase):
 
-    def test_accepts_location_name_icao_and_specialty_fields(self):
+    def test_accepts_location_name_location_code_and_specialty_fields(self):
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
@@ -14,7 +14,7 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "locationName": "Aeropuerto Internacional Gregorio Luperon",
-                "icaoCode": "MDPP",
+                "locationCode": "MDPP",
                 "specialtyCode": "VIG",
                 "specialtyName": "Vigilancia",
             },
@@ -49,7 +49,7 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
                     "inspectorComment": "Comentario",
                     "complianceStatus": "Non-Compliant",
                     "nominalRisk": "Medium",
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "EV-0001-01",
                             "evidenceType": "image",

@@ -81,4 +81,5 @@ async def import_followup(file: UploadFile = File(...)):
         "status": "imported",
         "followUpReportsImported": result["followUpReportsImported"],
         "followUpEvidenceImported": result["followUpEvidenceImported"],
+        "followUpFilenames": result.get("followUpFilenames", []),
     }

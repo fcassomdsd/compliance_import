@@ -96,28 +96,32 @@ A successful run returns JSON similar to:
 {"status":"imported","inspectionId":"a01kkq3s90jeabsj7dp8ddnz4qf","findingsImported":2,"evidenceImported":0}
 ```
 
+Follow-up imports return the stored follow-up filenames so callers can reference the created documents:
+
+```json
+{"status":"imported","followUpReportsImported":1,"followUpEvidenceImported":1,"followUpFilenames":["FollowUp MDPP001-VIG-01 01.json"]}
+```
+
 ## Payload contract
 - Exactly one checklist JSON: `checklist.json`
-- Findings can be provided in one of two ways:
-  - `session.json` using the current mobile session schema (responses/nonConformityDetails), or
-  - explicit findings using either:
+- Findings are provided explicitly using either:
   - `findings.json` containing an array (or one object), or
   - multiple files matching `finding*.json`
 - Zero or more evidence files (any non-JSON files in the ZIP payload)
-- `checklist.items[].evidence` is an optional array of evidence objects
-- Legacy single-object `checklist.items[].evidence` is accepted and normalized to a one-item array during import
-- Checklist metadata supports `locationName` (renamed from legacy `location`), `icaoCode`, `specialtyId`, `specialtyCode`, and `specialtyName`
+- `checklist.items[].evidenceItems` is an optional array of evidence objects
+- Legacy single-object `checklist.items[].evidenceItems` is accepted and normalized to a one-item array during import
+- Checklist metadata supports `locationName`, `locationCode`, `specialtyId`, `specialtyCode`, and `specialtyName`
 - `finding.requirementBreached` is auto-populated from the corresponding checklist item question text (`requirement`)
 
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-NNN` (example: `MDPP-001`)
-- `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
+- `items[].itemCode`: `AAA999-NNNN` to `AAAAAA-NNNN` (example: `VIG-0030`)
 - `checklist.checklistId`: `CHK-XXXXNNN-YYY` (example: `CHK-MDPP001-VIG`)
 - `finding.findingId`: `XXXXNNN-YYY-MM` (example: `MDPP001-VIG-01`)
 - `finding.correctiveAction.capId`: `CA-XXXXNNNYYY-MM-SS` (example: `CA-MDPP001VIG-01-01`)
 - `followUpReport.followUpId`: `FU-XXXXNNNYYY-MM-TTTTTT` (example: `FU-MDPP001VIG-01-260401`)
-- `finding.itemCode`: `DDD-NNNN` and is populated during import by matching `finding.itemId` to `checklist.items[].itemId`
-- `finding.locationCode`: populated during import from `checklist.checklist.icaoCode`
+- `finding.checklistItemCode`: `AAA999-NNNN` to `AAAAAA-NNNN` and is verified against checklist item codes during import
+- `finding.locationCode`: populated during import from `checklist.checklist.locationCode`
 - `finding.findingLevel`: one of `Non-Compliance`, `Observation`, `Recommendation`
 
 ## Follow-up payload contract
@@ -132,7 +136,6 @@ A successful run returns JSON similar to:
 ## Schemas
 - Checklist schema: `schema/checklist.schema.json`
 - Finding schema: `schema/finding.schema.json`
-- Session schema: `schema/session.schema.json`
 - Follow-up report schema: `schema/followup-report.schema.json`
 - Follow-up source finding schema: `schema/followup-source-finding.schema.json`
 

@@ -38,7 +38,12 @@ class FakeAlfrescoClient:
         self.evidence.append((specialty_name, evidence_file.name))
 
     def store_followup_report_document(self, report, specialty_name):
+        finding_id = report["followUpReport"]["findingId"]
+        sequence = len(self.followup_reports) + 1
         self.followup_reports.append((specialty_name, report))
+        return {
+            "storedFilename": f"FollowUp {finding_id} {sequence:02d}.json"
+        }
 
     def store_followup_evidence_file(self, specialty_name, evidence_file):
         self.followup_evidence.append((specialty_name, evidence_file.name))
@@ -72,7 +77,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "inspectionCode": INSPECTION_CODE,
                 "locationId": "location-1",
                 "locationName": "Aeropuerto",
-                "icaoCode": "MDPP",
+                "locationCode": "MDPP",
                 "specialtyId": "specialty-1",
                 "specialtyCode": SPECIALTY_CODE,
                 "specialtyName": "Vigilancia",
@@ -87,29 +92,28 @@ class ImportInspectionApiTests(unittest.TestCase):
                 }
             ]
         }
-        session_data = {
-            "summary": {
-                "specialty": "Vigilancia",
-                "lastUpdated": "2026-03-26T10:35:00.000Z"
-            },
-            "responses": {
-                "item-1": {
-                    "id": "item-1",
-                    "compliance": "Non-compliant",
-                    "comments": "fallback comments",
-                    "nonConformityDetails": {
-                        "description": "Generated finding description",
-                        "riskLevel": "High",
-                        "findingLevel": "Observation"
-                    }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "VIG-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation"
                 }
             }
-        }
+        ]
 
         payload = self._build_zip_bytes(
             {
                 "checklist.json": checklist,
-                "session.json": session_data,
+                "findings.json": findings,
             }
         )
 
@@ -141,8 +145,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -158,16 +161,15 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "FUEV-0001-01",
                             "evidenceType": "document",
-                            "evidenceSource": "proof.pdf"
+                            "source": "proof.pdf"
                         }
                     ]
                 }
@@ -194,6 +196,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "status": "imported",
                 "followUpReportsImported": 1,
                 "followUpEvidenceImported": 1,
+                "followUpFilenames": [f"FollowUp {FINDING_ID} 01.json"],
             },
             response.json(),
         )
@@ -209,8 +212,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "itemId": "item-1",
-                "itemCode": "VIG-0001",
+                "checklistItemCode": "VIG-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -226,16 +228,15 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": [
+                    "evidenceItems": [
                         {
                             "evidenceId": "FUEV-0001-01",
                             "evidenceType": "document",
-                            "evidenceSource": "missing-proof.pdf"
+                            "source": "missing-proof.pdf"
                         }
                     ]
                 }
@@ -276,8 +277,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationCode": "MDPP",
                     "locationName": "Location",
-                    "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "checklistItemCode": "VIG-0001",
                     "description": "desc",
                     "correctiveAction": {
                         "capId": CAP_ID
@@ -294,12 +294,11 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
                     "capId": CAP_ID,
-                    "evidence": []
+                    "evidenceItems": []
                 }
             }
         ]
@@ -324,6 +323,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "status": "imported",
                 "followUpReportsImported": 1,
                 "followUpEvidenceImported": 0,
+                "followUpFilenames": [f"FollowUp {FINDING_ID} 01.json"],
             },
             response.json(),
         )
