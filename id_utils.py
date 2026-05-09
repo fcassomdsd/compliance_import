@@ -36,6 +36,12 @@ def build_followup_id(finding_id, followup_date):
     return f"FU-{finding_segment}-{_format_followup_date_yy_mm_dd(followup_date)}"
 
 
+def build_followup_id_seq(finding_id, seq):
+    finding_segment = _finding_segment_for_followup_and_corrective_action(finding_id)
+    seq_int = int(seq) if isinstance(seq, (int, str)) and str(seq).lstrip("-").isdigit() else 0
+    return f"FU-{finding_segment}-{seq_int:02d}"
+
+
 def _finding_segment_for_followup_and_corrective_action(finding_id):
     if not isinstance(finding_id, str):
         return "UNKN000UNK-00"

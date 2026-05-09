@@ -39,7 +39,12 @@ class FakeAlfrescoClient:
         self.evidence.append((specialty_name, evidence_file.name))
 
     def store_followup_report_document(self, report, specialty_name):
+        finding_id = report["followUpReport"]["findingId"]
+        sequence = len(self.followup_reports) + 1
         self.followup_reports.append((specialty_name, report))
+        return {
+            "storedFilename": f"FollowUp {finding_id} {sequence:02d}.json"
+        }
 
     def store_followup_evidence_file(self, specialty_name, evidence_file):
         self.followup_evidence.append((specialty_name, evidence_file.name))
@@ -113,7 +118,7 @@ class ProcessInspectionPayloadTests(unittest.TestCase):
 
         finding = client.findings[0]["finding"]
         self.assertEqual("Observation", finding["findingLevel"])
-        self.assertEqual("Question text from checklist", finding["reglulationBreached"])
+        self.assertEqual("Question text from checklist", finding["requirementBreached"])
         self.assertEqual("VIG-0001", finding["checklistItemCode"])
 
     def test_process_inspection_rejects_invalid_finding_schema(self):
@@ -199,7 +204,6 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -228,6 +232,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
 
         self.assertEqual(1, result["followUpReportsImported"])
         self.assertEqual(1, result["followUpEvidenceImported"])
+        self.assertEqual([f"FollowUp {FINDING_ID} 01.json"], result["followUpFilenames"])
 
         client = FakeAlfrescoClient.instances[0]
         self.assertEqual(1, len(client.followup_reports))
@@ -261,7 +266,6 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -282,6 +286,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
 
         self.assertEqual(1, result["followUpReportsImported"])
         self.assertEqual(0, result["followUpEvidenceImported"])
+        self.assertEqual([f"FollowUp {FINDING_ID} 01.json"], result["followUpFilenames"])
         client = FakeAlfrescoClient.instances[0]
         imported_report = client.followup_reports[0][1]
         self.assertEqual(CAP_ID, imported_report["followUpReport"]["capId"])
@@ -314,7 +319,6 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -366,7 +370,6 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -388,6 +391,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
 
         self.assertEqual(1, result["followUpReportsImported"])
         self.assertEqual(0, result["followUpEvidenceImported"])
+        self.assertEqual([f"FollowUp {FINDING_ID} 01.json"], result["followUpFilenames"])
 
 
 if __name__ == "__main__":

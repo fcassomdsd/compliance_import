@@ -15,7 +15,6 @@
         "locationId",
         "locationName",
         "followUpDate",
-        "findingClosed",
         "percentComplete",
         "effectivenessConfirmed",
         "specialtyId"
@@ -46,7 +45,6 @@
           ]
         },
         "followUpDate": { "type": "string" },
-        "findingClosed": { "type": "boolean" },
         "percentComplete": {
           "type": "integer",
           "minimum": 0,

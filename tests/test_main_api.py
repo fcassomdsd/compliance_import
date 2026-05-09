@@ -38,7 +38,12 @@ class FakeAlfrescoClient:
         self.evidence.append((specialty_name, evidence_file.name))
 
     def store_followup_report_document(self, report, specialty_name):
+        finding_id = report["followUpReport"]["findingId"]
+        sequence = len(self.followup_reports) + 1
         self.followup_reports.append((specialty_name, report))
+        return {
+            "storedFilename": f"FollowUp {finding_id} {sequence:02d}.json"
+        }
 
     def store_followup_evidence_file(self, specialty_name, evidence_file):
         self.followup_evidence.append((specialty_name, evidence_file.name))
@@ -156,7 +161,6 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -192,6 +196,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "status": "imported",
                 "followUpReportsImported": 1,
                 "followUpEvidenceImported": 1,
+                "followUpFilenames": [f"FollowUp {FINDING_ID} 01.json"],
             },
             response.json(),
         )
@@ -223,7 +228,6 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -290,7 +294,6 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationName": "Location",
                     "followUpDate": "2026-04-14T15:36:28.825Z",
-                    "findingClosed": False,
                     "percentComplete": 30,
                     "effectivenessConfirmed": False,
                     "specialtyId": "specialty-1",
@@ -320,6 +323,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "status": "imported",
                 "followUpReportsImported": 1,
                 "followUpEvidenceImported": 0,
+                "followUpFilenames": [f"FollowUp {FINDING_ID} 01.json"],
             },
             response.json(),
         )

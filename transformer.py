@@ -208,7 +208,7 @@ def _enrich_findings_with_item_code(findings, checklist):
         finding_data["checklistItemCode"] = mapped_item_code
         requirement_text = _extract_question_text(item)
         if requirement_text is not None:
-            finding_data["reglulationBreached"] = requirement_text
+            finding_data["requirementBreached"] = requirement_text
 
         if "specialtyId" not in finding_data and checklist_specialty_id is not None:
             finding_data["specialtyId"] = checklist_specialty_id
@@ -372,6 +372,7 @@ def process_followup_payload(path):
             finding_id_to_specialty_name[finding_id] = specialty_name
 
     alf = AlfrescoClient()
+    followup_filenames = []
 
     for report in reports:
         report_data = report.get("followUpReport", {})
@@ -382,7 +383,11 @@ def process_followup_payload(path):
                 f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
             )
 
-        alf.store_followup_report_document(report, specialty_name)
+        store_result = alf.store_followup_report_document(report, specialty_name)
+        if isinstance(store_result, dict):
+            stored_filename = store_result.get("storedFilename")
+            if stored_filename:
+                followup_filenames.append(stored_filename)
 
     uploaded_evidence = 0
     evidence_name_to_file = {file_path.name: file_path for file_path in evidence_files}
@@ -405,4 +410,5 @@ def process_followup_payload(path):
     return {
         "followUpReportsImported": len(reports),
         "followUpEvidenceImported": uploaded_evidence,
+        "followUpFilenames": followup_filenames,
     }

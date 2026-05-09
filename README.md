@@ -96,6 +96,12 @@ A successful run returns JSON similar to:
 {"status":"imported","inspectionId":"a01kkq3s90jeabsj7dp8ddnz4qf","findingsImported":2,"evidenceImported":0}
 ```
 
+Follow-up imports return the stored follow-up filenames so callers can reference the created documents:
+
+```json
+{"status":"imported","followUpReportsImported":1,"followUpEvidenceImported":1,"followUpFilenames":["FollowUp MDPP001-VIG-01 01.json"]}
+```
+
 ## Payload contract
 - Exactly one checklist JSON: `checklist.json`
 - Findings are provided explicitly using either:
@@ -105,7 +111,7 @@ A successful run returns JSON similar to:
 - `checklist.items[].evidenceItems` is an optional array of evidence objects
 - Legacy single-object `checklist.items[].evidenceItems` is accepted and normalized to a one-item array during import
 - Checklist metadata supports `locationName`, `locationCode`, `specialtyId`, `specialtyCode`, and `specialtyName`
-- `finding.reglulationBreached` is auto-populated from the corresponding checklist item question text (`requirement`)
+- `finding.requirementBreached` is auto-populated from the corresponding checklist item question text (`requirement`)
 
 ### Identifier fields
 - `checklist.inspectionCode`: `XXXX-NNN` (example: `MDPP-001`)

@@ -3,8 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_BIN="$ROOT_DIR/venv/bin/python"
-API_URL="http://127.0.0.1:8000/inspection-import"
-PAYLOAD_ZIP="$ROOT_DIR/example data/inspection_payload.zip"
+#API_URL="http://127.0.0.1:8000/inspection-import"
+API_URL="http://127.0.0.1:8000/followup-import"
+#PAYLOAD_ZIP="$ROOT_DIR/example data/inspection_payload.zip"
+PAYLOAD_ZIP="$ROOT_DIR/example data/followup_payload_VIG_2026-05-08T12-12-18.zip"
 
 read_required_setting() {
   local env_name="$1"

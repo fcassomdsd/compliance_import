@@ -122,7 +122,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
 
         self.assertEqual("VIG-0001", enriched[0]["finding"]["checklistItemCode"])
         self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
-        self.assertEqual("Requirement text", enriched[0]["finding"]["reglulationBreached"])
+        self.assertEqual("Requirement text", enriched[0]["finding"]["requirementBreached"])
 
     def test_raises_when_finding_checklist_item_code_has_no_checklist_match(self):
         checklist = {
@@ -189,7 +189,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
         self.assertEqual("location-1", enriched[0]["finding"]["locationId"])
         self.assertEqual("Location", enriched[0]["finding"]["locationName"])
         self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
-        self.assertEqual("Requirement text", enriched[0]["finding"]["reglulationBreached"])
+        self.assertEqual("Requirement text", enriched[0]["finding"]["requirementBreached"])
 
 
 if __name__ == "__main__":

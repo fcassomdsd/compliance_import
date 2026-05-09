@@ -30,7 +30,7 @@
     "locationCode": { "type": "string" },
     "locationName": { "type": "string" },
     "checklistItemCode": { "type": "string" },
-    "reglulationBreached": { "type": "string" },
+    "requirementBreached": { "type": "string" },
     "dateIssued": { "type": "string" },
     "findingLevel": { "type": "string" },
     "description": { "type": "string" },

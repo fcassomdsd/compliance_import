@@ -34,8 +34,7 @@
         },
         "icaoReference": { "type": "string" },
         "nationalRegulation": { "type": "string" },
-        "reglulationBreached": { "type": "string" },
-        "regulationBreached": { "type": "string" },
+        "requirementBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": {
           "type": "string",

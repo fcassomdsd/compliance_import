@@ -9,17 +9,24 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       ALFRESCO_URL: ${ALFRESCO_URL:-http://host.docker.internal:8080/alfresco/api/-default-/public/alfresco/versions/1}
+      SEQ_API_URL: ${SEQ_API_URL:-http://node-red:1880}
       ALFRESCO_CANONICAL_JSON_PATH: ${ALFRESCO_CANONICAL_JSON_PATH:-Sites/vigilancia-de-la-so/documentLibrary/Inspecciones/Inspecciones/Datos de campo}
       ALFRESCO_TIMEOUT_SECONDS: ${ALFRESCO_TIMEOUT_SECONDS:-20}
       ALFRESCO_RETRY_TOTAL: ${ALFRESCO_RETRY_TOTAL:-3}
       ALFRESCO_RETRY_CONNECT: ${ALFRESCO_RETRY_CONNECT:-3}
       ALFRESCO_RETRY_STATUS: ${ALFRESCO_RETRY_STATUS:-3}
       ALFRESCO_RETRY_BACKOFF_SECONDS: ${ALFRESCO_RETRY_BACKOFF_SECONDS:-0.5}
+    networks:
+      - import-backend
     secrets:
       - source: alfresco_username
         target: alfresco_username
       - source: alfresco_password
         target: alfresco_password
+
+networks:
+  import-backend:
+    name: import-backend
 
 secrets:
   alfresco_username:

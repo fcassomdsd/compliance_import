@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import requests
-from id_utils import build_followup_id
+from id_utils import build_followup_id, build_followup_id_seq
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -15,6 +15,8 @@ DEFAULT_RETRY_CONNECT = 3
 DEFAULT_RETRY_STATUS = 3
 DEFAULT_RETRY_BACKOFF_SECONDS = 0.5
 DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+DEFAULT_SEQ_API_URL = "http://node-red:1880"
+DEFAULT_FOLLOWUP_SEQ_MAX_RETRIES = 5
 
 
 def _read_secret_value(path):
@@ -57,6 +59,7 @@ class AlfrescoClient:
 
         self.base_url = os.getenv("ALFRESCO_URL", DEFAULT_ALFRESCO_URL)
         self.canonical_json_path = os.getenv("ALFRESCO_CANONICAL_JSON_PATH", DEFAULT_CANONICAL_JSON_PATH)
+        self.seq_api_url = os.getenv("SEQ_API_URL", DEFAULT_SEQ_API_URL)
         self.timeout_seconds = float(os.getenv("ALFRESCO_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
         self.retry_total = int(os.getenv("ALFRESCO_RETRY_TOTAL", str(DEFAULT_RETRY_TOTAL)))
         self.retry_connect = int(os.getenv("ALFRESCO_RETRY_CONNECT", str(DEFAULT_RETRY_CONNECT)))
@@ -173,23 +176,75 @@ class AlfrescoClient:
         return self.upload_json_document(filename, finding, specialty_name)
 
 
+    def _get_next_followup_seq(self, relative_path, prefix):
+
+        response = self.session.get(
+            f"{self.seq_api_url}/content/lastSeq",
+            params={"relativePath": relative_path, "prefix": prefix},
+            timeout=self.timeout_seconds,
+        )
+        self._check_response(response)
+
+        last_seq_str = response.text.strip()
+        try:
+            last_seq = int(last_seq_str)
+        except (ValueError, TypeError):
+            last_seq = -1
+
+        return last_seq + 1
+
+
+    def _upload_followup_json(self, filename, document, specialty_name):
+
+        self._ensure_specialty_folder(specialty_name)
+
+        payload = json.dumps(document, ensure_ascii=False, indent=2).encode("utf-8")
+
+        files = {
+            "filedata": (f"{filename}.json", payload, "application/json")
+        }
+
+        data = {
+            "name": f"{filename}.json",
+            "nodeType": "cm:content",
+            "relativePath": f"{self.canonical_json_path}/{specialty_name}",
+        }
+
+        response = self.session.post(
+            f"{self.base_url}/nodes/-root-/children",
+            data=data,
+            files=files,
+            timeout=self.timeout_seconds,
+        )
+
+        if response.status_code == 409:
+            return None
+
+        self._check_response(response)
+        return response.json()
+
+
     def store_followup_report_document(self, followup_report, specialty_name):
 
         report_data = followup_report["followUpReport"]
         finding_id = report_data["findingId"]
-        followup_date = report_data.get("followUpDate", "")
-        date_part = followup_date.split("T")[0] if isinstance(followup_date, str) and followup_date else "UNKNOWN"
-        
-        # Reuse source followUpId when provided; otherwise construct a deterministic one.
-        followup_id = report_data.get("followUpId")
-        if not isinstance(followup_id, str) or not followup_id.strip():
-            followup_id = build_followup_id(finding_id, followup_date)
-        filename = f"FollowUp {finding_id} {date_part}"
+        relative_path = f"{self.canonical_json_path}/{specialty_name}"
+        prefix = f"FollowUp {finding_id}"
 
-        # Add followUpId to report data
-        report_data["followUpId"] = followup_id
+        for _attempt in range(DEFAULT_FOLLOWUP_SEQ_MAX_RETRIES):
+            seq = self._get_next_followup_seq(relative_path, prefix)
+            report_data["followUpId"] = build_followup_id_seq(finding_id, seq)
+            filename = f"{prefix} {seq:02d}"
 
-        return self.upload_json_document(filename, followup_report, specialty_name)
+            result = self._upload_followup_json(filename, followup_report, specialty_name)
+            if result is not None:
+                result["storedFilename"] = f"{filename}.json"
+                return result
+
+        raise RuntimeError(
+            f"Failed to store follow-up for finding '{finding_id}' after "
+            f"{DEFAULT_FOLLOWUP_SEQ_MAX_RETRIES} attempts due to sequence conflicts"
+        )
 
 
     def store_evidence_file(self, specialty_name, filepath):
