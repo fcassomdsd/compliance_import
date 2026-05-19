@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0",
+  "checklist": {
+    "inspectionId": "a01kkq3s90jeabsj7dp8ddnz4qf",
+    "inspectionCode": "MDPP-001",
+    "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
+    "locationName": "Aeropuerto Internacional Gregorio Luperon",
+    "locationCode": "MDPP",
+    "specialtyId": "a01k-specialty-vig-0001",
+    "specialtyCode": "VIG",
+    "specialtyName": "Vigilancia",
+    "checklistId": "CHK-MDPP001-VIG",
+    "providerId": "a01kkq6arvbeef8ssmsd2aqnvyb",
+    "providerName": "DTIC Instituto Dominicano de Aviación Civil"
+  },
+  "items": [
+    {
+      "itemId": "a01k65hkdvpe8v8c5gtfbcf659z",
+      "itemCode": "VIG-0030",
+      "requirement": "Establecer cursos y entrenamientos mínimos por cargo técnico.",
+      "verificationMethod": "Examinar programación de cursos por cargo.",
+      "comment": "Se evidenció plan anual, sin programación detallada por cargo.",
+      "reference": {
+        "icaoReference": "Doc 10057",
+        "nationalRegulation": "IDAC/DINA/DSV/9400"
+      },
+      "compliance": "Non-compliant",
+      "riskLevel": "High",
+      "evidenceItems": [
+        {
+          "evidenceId": "EV-0003",
+          "evidenceType": "document",
+          "source": "Base legal CC Art 37.txt"
+        },
+        {
+          "evidenceId": "EV-0004",
+          "evidenceType": "image",
+          "source": "inspection-photo-1.jpg"
+        }
+      ]
+    },
+    {
+      "itemId": "a01k65hkdwceag9j2p68tjjxcmf",
+      "itemCode": "VIG-0070",
+      "requirement": "Proteger servicios de vigilancia contra ataques y malware.",
+      "verificationMethod": "Verificar software, procedimientos y trazabilidad.",
+      "comment": "Existe política de seguridad, con oportunidades de mejora en evidencia periódica.",
+      "reference": {
+        "icaoReference": "A10 V3 PI 3.8.4",
+        "nationalRegulation": "RAD 10 Volumen III 10.11 d)"
+      },
+      "compliance": "Compliant",
+      "riskLevel": "Medium"
+    },
+    {
+      "itemId": "a01k65hkdvdeertcaaehayk7nhn",
+      "itemCode": "VIG-0010",
+      "requirement": "Contar con sistemas y equipos de trabajo necesarios.",
+      "verificationMethod": "Verificar estado de computadoras, teléfonos y equipos.",
+      "comment": "Equipos observados en estado correcto.",
+      "compliance": "Compliant",
+      "riskLevel": "Low",
+      "evidenceItems": [
+        {
+          "evidenceId": "EV-0001",
+          "evidenceType": "image",
+          "source": "maxresdefault.jpg"
+        }
+      ]
+    }
+  ]
+}

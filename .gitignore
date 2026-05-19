@@ -1,3 +1,5 @@
-example*
 docker/secrets/*.txt
 .env
+__pycache__
+tests/__pycache__
+reference

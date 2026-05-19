@@ -12,6 +12,12 @@ with (SCHEMA_DIR / "checklist.schema.json").open() as f:
 with (SCHEMA_DIR / "finding.schema.json").open() as f:
     FINDING_SCHEMA = json.load(f)
 
+with (SCHEMA_DIR / "followup-report.schema.json").open() as f:
+    FOLLOWUP_REPORT_SCHEMA = json.load(f)
+
+with (SCHEMA_DIR / "followup-source-finding.schema.json").open() as f:
+    FOLLOWUP_SOURCE_FINDING_SCHEMA = json.load(f)
+
 def validate_checklist(data):
 
     validate(instance=data, schema=CHECKLIST_SCHEMA)
@@ -29,3 +35,25 @@ def validate_findings(data):
 
     for finding in data:
         validate_finding(finding)
+
+
+def validate_followup_reports(data):
+
+    if not isinstance(data, list):
+        raise ValueError("followup-reports.json must be an array")
+
+    for report in data:
+        validate(instance=report, schema=FOLLOWUP_REPORT_SCHEMA)
+
+
+def validate_followup_source_findings(data):
+
+    if not isinstance(data, list):
+        raise ValueError("findings.json must be an array in follow-up payload")
+
+    for finding in data:
+        if isinstance(finding, dict) and isinstance(finding.get("finding"), dict):
+            validate(instance=finding["finding"], schema=FOLLOWUP_SOURCE_FINDING_SCHEMA)
+            continue
+
+        validate(instance=finding, schema=FOLLOWUP_SOURCE_FINDING_SCHEMA)

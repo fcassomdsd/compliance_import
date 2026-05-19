@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FollowUpSourceFinding",
+  "type": "object",
+  "required": [
+    "findingId",
+    "specialtyId",
+    "specialtyCode",
+    "specialtyName",
+    "providerId",
+    "locationId",
+    "locationCode",
+    "locationName",
+    "checklistItemCode",
+    "description"
+  ],
+  "properties": {
+    "findingId": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}-\\d{2}$"
+    },
+    "specialtyId": { "type": "string" },
+    "specialtyCode": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{3,6}$"
+    },
+    "specialtyName": { "type": "string" },
+    "providerId": { "type": "string" },
+    "locationId": { "type": "string" },
+    "locationCode": { "type": "string" },
+    "locationName": { "type": "string" },
+    "checklistItemCode": { "type": "string" },
+    "requirementBreached": { "type": "string" },
+    "dateIssued": { "type": "string" },
+    "findingLevel": { "type": "string" },
+    "description": { "type": "string" },
+    "nominalRisk": { "type": "string" },
+    "riskClassification": { "type": "string" },
+    "riskLevel": { "type": "string" },
+    "findingStatus": { "type": "string" },
+    "correctiveAction": {
+      "type": "object",
+      "properties": {
+        "capId": {
+          "type": "string",
+          "pattern": "^CA-[A-Z0-9]{4}\\d{3}[A-Z0-9]{3,6}-\\d{2}-\\d{2}$"
+        },
+        "proposedAction": { "type": "string" },
+        "responsibleEntity": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "acceptanceStatus": { "type": "string" }
+      },
+      "required": ["capId"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

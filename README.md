@@ -1,145 +1,271 @@
 # Compliance Import Service
 
-FastAPI service for ingesting one Checklist and zero or more Findings, validating them against JSON schemas, and storing canonical JSON documents in Alfresco.
+FastAPI service that imports inspection and follow-up payloads from ZIP files, validates JSON content against schemas, enriches records, and stores canonical documents in Alfresco.
 
-Storage behavior:
-- Creates/uses a domain folder under the canonical base path.
-- Stores checklist JSON, finding JSON, and evidence files in that domain folder.
+## What this service does
 
-## Local Dry-Run
+- Exposes two endpoints:
+  - `POST /inspection-import`
+  - `POST /followup-import`
+- Validates incoming JSON using the schemas in `schema/`.
+- Performs domain transformations (for example, finding enrichment from checklist data).
+- Stores JSON documents and evidence files in Alfresco under:
+  - `<ALFRESCO_CANONICAL_JSON_PATH>/<specialtyName>/...`
 
-### Prerequisites
-- Python virtual environment exists at `venv/`
-- Dependencies installed from `requirements.txt`
-- Test payload ZIP exists at `example data/inspection_payload.zip`
-- Alfresco credentials configured using one of:
-  - Docker secret files mounted at `/run/secrets/alfresco_username` and `/run/secrets/alfresco_password`
-  - `ALFRESCO_USERNAME_FILE` and `ALFRESCO_PASSWORD_FILE`
-  - `ALFRESCO_USERNAME` and `ALFRESCO_PASSWORD`
-  - Optional: `ALFRESCO_URL`, `ALFRESCO_CANONICAL_JSON_PATH`, `ALFRESCO_TIMEOUT_SECONDS`
-  - Optional retry/backoff:
-    - `ALFRESCO_RETRY_TOTAL` (default `3`)
-    - `ALFRESCO_RETRY_CONNECT` (default `3`)
-    - `ALFRESCO_RETRY_STATUS` (default `3`)
-    - `ALFRESCO_RETRY_BACKOFF_SECONDS` (default `0.5`)
+## Quick start (local)
+
+### 1. Create and activate a virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Note: This repository may already include `.venv/` in some developer setups. The scripts use `venv/` by default.
+
+### 2. Configure Alfresco credentials
+
+The service requires credentials and resolves them in this order for each value (`ALFRESCO_USERNAME`, `ALFRESCO_PASSWORD`):
+
+1. `ALFRESCO_*_FILE`
+2. `/run/secrets/alfresco_*`
+3. `ALFRESCO_*`
 
 Example:
 
 ```bash
 export ALFRESCO_USERNAME="admin"
 export ALFRESCO_PASSWORD="admin"
-export ALFRESCO_RETRY_TOTAL="3"
-export ALFRESCO_RETRY_BACKOFF_SECONDS="0.5"
 ```
 
-## Docker
+### 3. Run the API
 
-### Files added
-- `Dockerfile`
-- `docker-compose.yml`
-- `.env.docker.example`
-- `docker/secrets/alfresco_username.txt.example`
-- `docker/secrets/alfresco_password.txt.example`
+```bash
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-### Run with Docker Compose
-From the repository root:
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 4. Upload a ZIP payload
+
+Inspection:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/inspection-import" \
+  -F "file=@/absolute/path/to/inspection_payload.zip"
+```
+
+Follow-up:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/followup-import" \
+  -F "file=@/absolute/path/to/followup_payload.zip"
+```
+
+## API responses
+
+Inspection response:
+
+```json
+{
+  "status": "imported",
+  "inspectionId": "inspection-1",
+  "findingsImported": 2,
+  "evidenceImported": 3
+}
+```
+
+Follow-up response:
+
+```json
+{
+  "status": "imported",
+  "followUpReportsImported": 1,
+  "followUpEvidenceImported": 1,
+  "followUpFilenames": [
+    "FollowUp MDPP001-VIG-01 01.json"
+  ]
+}
+```
+
+`followUpFilenames` helps clients reference the exact JSON documents created in Alfresco.
+
+## Payload contracts
+
+### Inspection import (`POST /inspection-import`)
+
+Required ZIP contents:
+
+- `checklist.json` (required)
+- Findings provided as either:
+  - `findings.json` (array or single object), or
+  - one or more `finding*.json` files
+- Optional evidence files:
+  - any non-JSON files anywhere in the ZIP are treated as evidence
+
+Behavior notes:
+
+- `checklist.items[].evidenceItems` accepts:
+  - array (preferred)
+  - single object (auto-normalized to one-item array)
+  - `null` (normalized to `[]`)
+- Each finding must map to a checklist item via `finding.checklistItemCode`.
+- `finding.requirementBreached` is auto-populated from checklist item text fields.
+- Missing finding metadata may be backfilled from checklist metadata (`specialty*`, `providerId`, `location*`).
+
+### Follow-up import (`POST /followup-import`)
+
+Required ZIP contents:
+
+- `prior-findings.json` (required)
+  - array of source findings for linking
+  - can be either flattened finding objects or wrapped objects with a `finding` key
+- `followup-reports.json` (required)
+  - array of follow-up report objects
+- `FollowUpEvidence/` folder (required)
+  - evidence files referenced by each report's `evidenceItems[].source`
+
+Behavior notes:
+
+- Each follow-up report is matched to a source finding by `findingId`.
+- `capId` consistency is enforced:
+  - if source finding has `correctiveAction.capId` and report omits `capId`, it is backfilled
+  - if both exist and differ, import fails
+- Follow-up JSON filenames use sequence-based naming:
+  - `FollowUp <findingId> <NN>.json` (for example `FollowUp MDPP001-VIG-01 01.json`)
+
+## Sample ZIP layouts
+
+These examples show the minimum structure expected by each endpoint.
+
+### Inspection payload example
+
+```text
+inspection_payload.zip
+|-- checklist.json
+|-- findings.json
+|-- evidence-photo-01.jpg
+`-- attachments/
+  `-- supporting-note.txt
+```
+
+Valid alternatives for findings:
+
+- `findings.json` with one object or an array of objects
+- one or more files named like `finding-1.json`, `finding-2.json`, and so on
+
+### Follow-up payload example
+
+```text
+followup_payload.zip
+|-- prior-findings.json
+|-- followup-reports.json
+`-- FollowUpEvidence/
+  |-- proof-01.pdf
+  `-- image-01.jpg
+```
+
+Important:
+
+- `FollowUpEvidence/` must exist (it can be empty only if reports have no `evidenceItems`).
+- Each `followUpReport.evidenceItems[].source` must match a file name inside `FollowUpEvidence/`.
+
+## Validation schemas
+
+- `schema/checklist.schema.json`
+- `schema/finding.schema.json`
+- `schema/followup-report.schema.json`
+- `schema/followup-source-finding.schema.json`
+
+## Configuration
+
+Core environment variables:
+
+- `ALFRESCO_URL`
+- `ALFRESCO_CANONICAL_JSON_PATH`
+- `ALFRESCO_USERNAME`
+- `ALFRESCO_PASSWORD`
+- `ALFRESCO_USERNAME_FILE`
+- `ALFRESCO_PASSWORD_FILE`
+- `ALFRESCO_TIMEOUT_SECONDS` (default: `20`)
+- `SEQ_API_URL` (default: `http://node-red:1880`)
+
+Retry settings:
+
+- `ALFRESCO_RETRY_TOTAL` (default: `3`)
+- `ALFRESCO_RETRY_CONNECT` (default: `3`)
+- `ALFRESCO_RETRY_STATUS` (default: `3`)
+- `ALFRESCO_RETRY_BACKOFF_SECONDS` (default: `0.5`)
+
+## Docker usage
 
 ```bash
 cp .env.docker.example .env
 cp docker/secrets/alfresco_username.txt.example docker/secrets/alfresco_username.txt
 cp docker/secrets/alfresco_password.txt.example docker/secrets/alfresco_password.txt
-# edit .env and docker/secrets/*.txt with real values
+# edit .env and docker/secrets/*.txt
 
 docker compose up --build -d
 ```
 
-Service endpoint:
+Endpoints:
 
 ```text
 http://127.0.0.1:8000/inspection-import
+http://127.0.0.1:8000/followup-import
 ```
 
-### Credential resolution order
-The app reads Alfresco credentials in this order for each setting (`ALFRESCO_USERNAME`, `ALFRESCO_PASSWORD`):
+## Dry-run script
 
-1. `ALFRESCO_*_FILE`
-2. Docker default secret path in `/run/secrets/...`
-3. `ALFRESCO_*` environment variable
-
-If none is provided, startup fails with a clear error message.
-
-### Run
-From the repository root:
+Use `run_dryrun.sh` to start the API, post a configured sample ZIP, print the response, and stop the server automatically.
 
 ```bash
 ./run_dryrun.sh
 ```
 
-### Run unit tests
-From the repository root:
+## Running tests
+
+All tests:
 
 ```bash
 venv/bin/python -m unittest -v
 ```
 
-Run only the evidence normalization tests:
+Selected tests:
 
 ```bash
-venv/bin/python -m unittest tests/test_transformer_normalize_evidence.py -v
+venv/bin/python -m unittest tests/test_main_api.py -v
+venv/bin/python -m unittest tests/test_transformer_process_session.py -v
 ```
 
-### Expected response
-A successful run returns JSON similar to:
+## License
 
-```json
-{"status":"imported","inspectionId":"a01kkq3s90jeabsj7dp8ddnz4qf","findingsImported":2,"evidenceImported":0}
-```
+This project is licensed under the Apache License, Version 2.0.
 
-## Payload contract
-- Exactly one checklist JSON: `checklist.json`
-- Zero or more findings using either:
-  - `findings.json` containing an array (or one object), or
-  - multiple files matching `finding*.json`
-- Zero or more evidence files (any non-JSON files in the ZIP payload)
-- `checklist.items[].evidence` is an optional array of evidence objects
-- Legacy single-object `checklist.items[].evidence` is accepted and normalized to a one-item array during import
+- See `LICENSE` for the full license text.
+- See `NOTICE` for attribution details.
+- Copyright 2026 Fernando A. Casso Rodriguez.
 
-### Identifier fields
-- `checklist.inspectionCode`: `XXXX-YYYY-NN` (example: `MDPP-2026-01`)
-- `items[].itemCode`: `DDD-NNNN` (example: `VIG-0030`)
-- `finding.findingId`: `XXXX-DDD-YYYY-NN` (example: `MDPP-VIG-2026-01`)
+## Error handling and troubleshooting
 
-## Schemas
-- Checklist schema: `schema/checklist.schema.json`
-- Finding schema: `schema/finding.schema.json`
+- `400 Uploaded file is not a valid ZIP`
+  - Uploaded payload is not a readable ZIP file.
+- `400 Missing checklist.json in ingestion payload`
+  - Inspection ZIP is missing `checklist.json`.
+- `400 Missing prior-findings.json in follow-up payload`
+  - Follow-up ZIP is missing source findings file.
+- `400 Missing followup-reports.json in follow-up payload`
+  - Follow-up ZIP is missing reports file.
+- `400 Missing FollowUpEvidence folder in follow-up payload`
+  - Follow-up ZIP is missing required evidence directory.
+- `422 ...`
+  - JSON schema validation error for checklist, findings, or follow-up reports.
+- `502 Alfresco request failed (...)`
+  - Upstream Alfresco call failed after retry policy.
 
-## Troubleshooting
-
-- **500 `Missing checklist.json in ingestion payload`**
-  - Ensure the uploaded ZIP contains `checklist.json` at any folder depth.
-  - Ensure the checklist JSON matches `schema/checklist.schema.json`.
-
-- **Validation error for findings**
-  - Use either `findings.json` (object or array) or one/more `finding*.json` files.
-  - Ensure each finding object matches `schema/finding.schema.json`.
-
-- **Evidence files are not copied**
-  - Ensure evidence files are included in the uploaded ZIP as non-JSON files.
-  - Confirm API response field `evidenceImported` is greater than `0`.
-
-- **`curl: (26) Failed to open/read local data`**
-  - Use an absolute path for ZIP uploads when the current directory is uncertain.
-  - Example: `-F "file=@/absolute/path/to/inspection_payload.zip"`.
-
-- **Dry-run script cannot find venv/python**
-  - Verify the executable exists at `venv/bin/python`.
-  - Recreate venv and install dependencies if needed.
-
-- **Connection refused on `127.0.0.1:8000`**
-  - Confirm the API is running or re-run `./run_dryrun.sh`.
-  - Check for port conflicts and stop any previous server process on `8000`.
-
-- **502 with `Alfresco request failed (...)`**
-  - Verify `ALFRESCO_URL`, credentials, and Alfresco availability.
-  - Confirm the target folder path exists and user has permissions.
-  - For transient errors (`429`, `5xx`), retries/backoff are applied automatically.
+If `curl` returns `Failed to open/read local data`, use an absolute path for `@/path/to/file.zip`.
