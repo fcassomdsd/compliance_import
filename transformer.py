@@ -361,7 +361,7 @@ def process_followup_payload(path):
     validate_followup_reports(followup_reports)
 
     reports = _build_followup_reports(source_findings, followup_reports)
-    _validate_followup_evidence_sources(reports, evidence_files)
+    evidence_name_to_file = _validate_followup_evidence_sources(reports, evidence_files)
 
     normalized_findings = _normalize_findings_for_followup(source_findings)
     finding_id_to_specialty_name = {}
@@ -390,7 +390,6 @@ def process_followup_payload(path):
                 followup_filenames.append(stored_filename)
 
     uploaded_evidence = 0
-    evidence_name_to_file = {file_path.name: file_path for file_path in evidence_files}
 
     for report in reports:
         report_data = report.get("followUpReport", {})
