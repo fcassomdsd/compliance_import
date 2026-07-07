@@ -4,11 +4,14 @@ FastAPI service that imports inspection and follow-up payloads from ZIP files, v
 
 ## What this service does
 
-- Exposes two endpoints:
+- Exposes three endpoints:
+  - `GET /health`
   - `POST /inspection-import`
   - `POST /followup-import`
+- Supports optional API key authentication via `X-API-Key` header (configured with `IMPORT_API_KEY`).
 - Validates incoming JSON using the schemas in `schema/`.
 - Performs domain transformations (for example, finding enrichment from checklist data).
+- Protects against ZIP bombs and enforces upload size limits.
 - Stores JSON documents and evidence files in Alfresco under:
   - `<ALFRESCO_CANONICAL_JSON_PATH>/<specialtyName>/...`
 
@@ -53,16 +56,20 @@ http://127.0.0.1:8000/docs
 
 ### 4. Upload a ZIP payload
 
-Inspection:
+If `IMPORT_API_KEY` is configured, include the `X-API-Key` header:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/inspection-import" \
+  -H "X-API-Key: your-api-key" \
+  -F "file=@/absolute/path/to/inspection_payload.zip"
+```
+
+Without API key configured (development mode):
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/inspection-import" \
   -F "file=@/absolute/path/to/inspection_payload.zip"
-```
 
-Follow-up:
-
-```bash
 curl -X POST "http://127.0.0.1:8000/followup-import" \
   -F "file=@/absolute/path/to/followup_payload.zip"
 ```
@@ -186,19 +193,30 @@ Important:
 
 Core environment variables:
 
-- `ALFRESCO_URL`
-- `ALFRESCO_CANONICAL_JSON_PATH`
+- `ALFRESCO_URL` (default: `http://proxy:8080/alfresco/api/-default-/public/alfresco/versions/1`)
+- `ALFRESCO_CANONICAL_JSON_PATH` (default: `Sites/vigilancia-de-la-so/documentLibrary/Vigilancia/Datos de campo`)
 - `ALFRESCO_USERNAME`
 - `ALFRESCO_PASSWORD`
 - `ALFRESCO_USERNAME_FILE`
 - `ALFRESCO_PASSWORD_FILE`
 - `ALFRESCO_TIMEOUT_SECONDS` (default: `20`)
-- `SEQ_API_URL` (default: `http://node-red:1880`)
+
+Authentication:
+
+- `IMPORT_API_KEY` — if set, all requests must include `X-API-Key` header matching this value
+
+Upload limits:
+
+- `MAX_UPLOAD_SIZE_BYTES` (default: `419430400` — 400 MB)
+- `MAX_EXTRACTED_TOTAL_SIZE` (default: `524288000` — 500 MB)
+- `MAX_EXTRACTED_FILE_SIZE` (default: `52428800` — 50 MB)
+- `MAX_COMPRESSION_RATIO` (default: `100`)
 
 Retry settings:
 
 - `ALFRESCO_RETRY_TOTAL` (default: `3`)
 - `ALFRESCO_RETRY_CONNECT` (default: `3`)
+- `ALFRESCO_RETRY_READ` (default: `1`)
 - `ALFRESCO_RETRY_STATUS` (default: `3`)
 - `ALFRESCO_RETRY_BACKOFF_SECONDS` (default: `0.5`)
 
@@ -253,8 +271,18 @@ This project is licensed under the Apache License, Version 2.0.
 
 ## Error handling and troubleshooting
 
+- `401 Invalid or missing API key`
+  - `IMPORT_API_KEY` is configured but the request did not include a matching `X-API-Key` header.
 - `400 Uploaded file is not a valid ZIP`
   - Uploaded payload is not a readable ZIP file.
+- `400 ZIP payload exceeds maximum total decompressed size`
+  - The total extracted size of all files in the ZIP exceeds `MAX_EXTRACTED_TOTAL_SIZE`.
+- `400 File exceeds maximum decompressed size`
+  - A single file in the ZIP exceeds `MAX_EXTRACTED_FILE_SIZE`.
+- `400 File has suspicious compression ratio`
+  - A file's compression ratio exceeds `MAX_COMPRESSION_RATIO` (possible ZIP bomb).
+- `400 Invalid ZIP payload: unsafe file path`
+  - ZIP contains a path traversal attempt (e.g., `../escape.txt`).
 - `400 Missing checklist.json in ingestion payload`
   - Inspection ZIP is missing `checklist.json`.
 - `400 Missing prior-findings.json in follow-up payload`

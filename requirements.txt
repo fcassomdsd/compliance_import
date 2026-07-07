@@ -3,4 +3,3 @@ uvicorn
 python-multipart
 requests
 jsonschema
-httpx

@@ -1,52 +1,25 @@
 import io
 import json
+import os
+import tempfile
 import unittest
 import zipfile
+from pathlib import Path
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from id_utils import build_corrective_action_id, build_finding_id
 
+import main
 from main import app
+from tests.support.fake_alfresco_client import FakeAlfrescoClient
 
 
 INSPECTION_CODE = "MDPP-001"
 SPECIALTY_CODE = "VIG"
 FINDING_ID = build_finding_id(INSPECTION_CODE, SPECIALTY_CODE, 1)
 CAP_ID = build_corrective_action_id(FINDING_ID, 1)
-
-
-class FakeAlfrescoClient:
-
-    instances = []
-
-    def __init__(self):
-        self.checklists = []
-        self.findings = []
-        self.evidence = []
-        self.followup_reports = []
-        self.followup_evidence = []
-        FakeAlfrescoClient.instances.append(self)
-
-    def store_checklist_document(self, checklist):
-        self.checklists.append(checklist)
-
-    def store_finding_document(self, finding):
-        self.findings.append(finding)
-
-    def store_evidence_file(self, specialty_name, evidence_file):
-        self.evidence.append((specialty_name, evidence_file.name))
-
-    def store_followup_report_document(self, report, specialty_name):
-        finding_id = report["followUpReport"]["findingId"]
-        sequence = len(self.followup_reports) + 1
-        self.followup_reports.append((specialty_name, report))
-        return {
-            "storedFilename": f"FollowUp {finding_id} {sequence:02d}.json"
-        }
-
-    def store_followup_evidence_file(self, specialty_name, evidence_file):
-        self.followup_evidence.append((specialty_name, evidence_file.name))
 
 
 class ImportInspectionApiTests(unittest.TestCase):
@@ -327,6 +300,132 @@ class ImportInspectionApiTests(unittest.TestCase):
             },
             response.json(),
         )
+
+
+class AuthMiddlewareTests(unittest.TestCase):
+
+    def setUp(self):
+        FakeAlfrescoClient.instances = []
+        self.client = TestClient(app)
+
+    @staticmethod
+    def _empty_zip():
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr(".keep", "")
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def test_auth_allows_request_when_import_api_key_is_not_set(self):
+        with patch.dict(os.environ, {}, clear=True):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("test.zip", self._empty_zip(), "application/zip")},
+            )
+
+        self.assertIn(response.status_code, (200, 400))
+
+    def test_auth_rejects_request_without_api_key(self):
+        with patch.dict(os.environ, {"IMPORT_API_KEY": "secret-key"}):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("test.zip", self._empty_zip(), "application/zip")},
+            )
+
+        self.assertEqual(401, response.status_code)
+
+    def test_auth_rejects_request_with_invalid_api_key(self):
+        with patch.dict(os.environ, {"IMPORT_API_KEY": "secret-key"}):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("test.zip", self._empty_zip(), "application/zip")},
+                headers={"X-API-Key": "wrong-key"},
+            )
+
+        self.assertEqual(401, response.status_code)
+
+    def test_auth_allows_request_with_valid_api_key(self):
+        with patch.dict(os.environ, {"IMPORT_API_KEY": "secret-key"}):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("test.zip", self._empty_zip(), "application/zip")},
+                headers={"X-API-Key": "secret-key"},
+            )
+
+        self.assertIn(response.status_code, (200, 400))
+
+
+class ZipBombProtectionTests(unittest.TestCase):
+
+    def setUp(self):
+        FakeAlfrescoClient.instances = []
+
+    def test_validate_zip_bomb_rejects_high_compression_ratio(self):
+        info = zipfile.ZipInfo("bomb.txt")
+        info.file_size = 10000
+        info.compress_size = 50
+
+        with self.assertRaises(HTTPException) as ctx:
+            main._validate_zip_bomb(info)
+
+        self.assertEqual(400, ctx.exception.status_code)
+        self.assertIn("compression ratio", ctx.exception.detail)
+
+    def test_validate_zip_bomb_rejects_oversized_file(self):
+        with patch("main.MAX_EXTRACTED_FILE_SIZE", 100):
+            info = zipfile.ZipInfo("huge.bin")
+            info.file_size = 500
+            info.compress_size = 500
+
+            with self.assertRaises(HTTPException) as ctx:
+                main._validate_zip_bomb(info)
+
+            self.assertEqual(400, ctx.exception.status_code)
+            self.assertIn("maximum decompressed", ctx.exception.detail)
+
+    def test_safe_extract_rejects_total_oversize(self):
+        with patch("main.MAX_EXTRACTED_TOTAL_SIZE", 200):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr("a.txt", "A" * 150)
+                zip_file.writestr("b.txt", "B" * 100)
+            buffer.seek(0)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with zipfile.ZipFile(buffer, "r") as zip_ref:
+                    with self.assertRaises(HTTPException) as ctx:
+                        main._safe_extract(zip_ref, tmpdir)
+
+                    self.assertEqual(400, ctx.exception.status_code)
+                    self.assertIn("maximum total", ctx.exception.detail)
+
+    def test_safe_extract_rejects_path_traversal(self):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            info = zipfile.ZipInfo("../escape.txt")
+            zip_file.writestr(info, "escaped")
+        buffer.seek(0)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(buffer, "r") as zip_ref:
+                with self.assertRaises(HTTPException) as ctx:
+                    main._safe_extract(zip_ref, tmpdir)
+
+                self.assertEqual(400, ctx.exception.status_code)
+                self.assertIn("unsafe", ctx.exception.detail)
+
+    def test_safe_extract_allows_normal_payload(self):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr("checklist.json", json.dumps({"test": True}))
+        buffer.seek(0)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(buffer, "r") as zip_ref:
+                main._safe_extract(zip_ref, tmpdir)
+
+            extracted = Path(tmpdir) / "checklist.json"
+            self.assertTrue(extracted.is_file())
 
 
 if __name__ == "__main__":

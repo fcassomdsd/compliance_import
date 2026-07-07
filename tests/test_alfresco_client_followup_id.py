@@ -18,7 +18,7 @@ class FollowupReportIdTests(unittest.TestCase):
 
     def test_store_followup_uses_sequential_id_for_filename_and_followup_id(self):
         client = self._build_client()
-        client._get_next_followup_seq = lambda relative_path, prefix: 3
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 3
         client._upload_followup_json = lambda filename, doc, specialty: self._make_upload_ok(filename)
 
         report = {
@@ -39,7 +39,7 @@ class FollowupReportIdTests(unittest.TestCase):
 
     def test_store_followup_replaces_source_temporary_id(self):
         client = self._build_client()
-        client._get_next_followup_seq = lambda relative_path, prefix: 0
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 0
         client._upload_followup_json = lambda filename, doc, specialty: self._make_upload_ok(filename)
 
         report = {
@@ -76,7 +76,7 @@ class FollowupReportIdTests(unittest.TestCase):
                 return None
             return self._make_upload_ok(filename)
 
-        client._get_next_followup_seq = mock_get_seq
+        client._resolve_next_followup_seq = mock_get_seq
         client._upload_followup_json = mock_upload
 
         report = {
@@ -95,7 +95,7 @@ class FollowupReportIdTests(unittest.TestCase):
 
     def test_store_followup_raises_after_max_retries(self):
         client = self._build_client()
-        client._get_next_followup_seq = lambda relative_path, prefix: 0
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 0
         client._upload_followup_json = lambda filename, doc, specialty: None  # always conflict
 
         report = {
@@ -111,7 +111,7 @@ class FollowupReportIdTests(unittest.TestCase):
 
     def test_store_followup_seq_zero_on_first_file(self):
         client = self._build_client()
-        client._get_next_followup_seq = lambda relative_path, prefix: 0
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 0
         client._upload_followup_json = lambda filename, doc, specialty: self._make_upload_ok(filename)
 
         report = {

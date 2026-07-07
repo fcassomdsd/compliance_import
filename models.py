@@ -6,30 +6,46 @@ from jsonschema import validate
 
 SCHEMA_DIR = Path(__file__).resolve().parent / "schema"
 
-with (SCHEMA_DIR / "checklist.schema.json").open() as f:
-    CHECKLIST_SCHEMA = json.load(f)
+_schemas = None
 
-with (SCHEMA_DIR / "finding.schema.json").open() as f:
-    FINDING_SCHEMA = json.load(f)
 
-with (SCHEMA_DIR / "followup-report.schema.json").open() as f:
-    FOLLOWUP_REPORT_SCHEMA = json.load(f)
+def _load_schemas():
+    global _schemas
+    if _schemas is not None:
+        return _schemas
 
-with (SCHEMA_DIR / "followup-source-finding.schema.json").open() as f:
-    FOLLOWUP_SOURCE_FINDING_SCHEMA = json.load(f)
+    try:
+        _schemas = {
+            "checklist": json.loads(
+                (SCHEMA_DIR / "checklist.schema.json").read_text(encoding="utf-8")
+            ),
+            "finding": json.loads(
+                (SCHEMA_DIR / "finding.schema.json").read_text(encoding="utf-8")
+            ),
+            "followup_report": json.loads(
+                (SCHEMA_DIR / "followup-report.schema.json").read_text(encoding="utf-8")
+            ),
+            "followup_source_finding": json.loads(
+                (SCHEMA_DIR / "followup-source-finding.schema.json").read_text(encoding="utf-8")
+            ),
+        }
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"Failed to load JSON schema from {SCHEMA_DIR}: {exc}"
+        ) from exc
+
+    return _schemas
+
 
 def validate_checklist(data):
-
-    validate(instance=data, schema=CHECKLIST_SCHEMA)
+    validate(instance=data, schema=_load_schemas()["checklist"])
 
 
 def validate_finding(data):
-
-    validate(instance=data, schema=FINDING_SCHEMA)
+    validate(instance=data, schema=_load_schemas()["finding"])
 
 
 def validate_findings(data):
-
     if not isinstance(data, list):
         raise ValueError("findings must be an array")
 
@@ -38,22 +54,20 @@ def validate_findings(data):
 
 
 def validate_followup_reports(data):
-
     if not isinstance(data, list):
         raise ValueError("followup-reports.json must be an array")
 
     for report in data:
-        validate(instance=report, schema=FOLLOWUP_REPORT_SCHEMA)
+        validate(instance=report, schema=_load_schemas()["followup_report"])
 
 
 def validate_followup_source_findings(data):
-
     if not isinstance(data, list):
         raise ValueError("findings.json must be an array in follow-up payload")
 
     for finding in data:
         if isinstance(finding, dict) and isinstance(finding.get("finding"), dict):
-            validate(instance=finding["finding"], schema=FOLLOWUP_SOURCE_FINDING_SCHEMA)
+            validate(instance=finding["finding"], schema=_load_schemas()["followup_source_finding"])
             continue
 
-        validate(instance=finding, schema=FOLLOWUP_SOURCE_FINDING_SCHEMA)
+        validate(instance=finding, schema=_load_schemas()["followup_source_finding"])
