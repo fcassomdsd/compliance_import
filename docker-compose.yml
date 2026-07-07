@@ -17,6 +17,7 @@ services:
       ALFRESCO_RETRY_BACKOFF_SECONDS: ${ALFRESCO_RETRY_BACKOFF_SECONDS:-0.5}
     networks:
       - import-backend
+      - alfresco-backend
     secrets:
       - source: alfresco_username
         target: alfresco_username
@@ -26,6 +27,9 @@ services:
 networks:
   import-backend:
     name: import-backend
+  alfresco-backend:
+    name: alfresco_backend
+    external : true
 
 secrets:
   alfresco_username:
