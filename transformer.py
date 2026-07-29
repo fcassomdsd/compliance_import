@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
@@ -332,6 +333,24 @@ def process_inspection(path):
     validate_findings(findings)
 
     findings = _enrich_findings_with_item_code(findings, checklist)
+
+    SEVERITY_DAYS = {"A": 7, "B": 30, "C": 90}
+    for finding in findings:
+        finding_data = finding.get("finding", {})
+        severity = finding_data.get("findingSeverity")
+        if not severity or severity not in SEVERITY_DAYS:
+            continue
+        if "resolutionDeadline" in finding_data:
+            continue
+        date_issued = finding_data.get("dateIssued") or checklist.get("checklist", {}).get("startDate")
+        if not date_issued:
+            continue
+        try:
+            issued = datetime.fromisoformat(date_issued.replace("Z", "+00:00"))
+            deadline = issued + timedelta(days=SEVERITY_DAYS[severity])
+            finding_data["resolutionDeadline"] = deadline.date().isoformat()
+        except (ValueError, TypeError):
+            pass
 
     alf = AlfrescoClient()
     specialty_name = checklist["checklist"]["specialtyName"]
