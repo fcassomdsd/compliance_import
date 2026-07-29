@@ -40,6 +40,10 @@
           "type": "string",
           "enum": ["Non-Compliance", "Observation", "Recommendation"]
         },
+        "findingSeverity": {
+          "type": "string",
+          "enum": ["A", "B", "C"]
+        },
         "description": { "type": "string" },
         "findingStatus": {
           "type": "string",
