@@ -2,6 +2,15 @@
 
 All notable changes are documented in this file.
 
+## [0.2.1] - 2026-08-01
+
+### Added
+- `findingSeverity` property to finding JSON schema (enum: A/B/C)
+- `resolutionDeadline` auto-calculation from severity: dateIssued + {A:7, B:30, C:90} days
+- `targetResidualRisk` and `achievedResidualRisk` to finding JSON schema (enum: Low/Medium/High/Critical)
+- `currentResidualRisk` to followup-report JSON schema (enum: Low/Medium/High/Critical)
+- `Pending Closure Approval` status added to finding status enum
+
 ## [0.2.0] - 2026-06-21
 
 ### Added

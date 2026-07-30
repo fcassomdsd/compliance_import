@@ -53,6 +53,10 @@
         "followUpClosureDate": { "type": "string", "format": "date" },
         "closureVerificationMethod": { "type": "string" },
         "effectivenessConfirmed": { "type": ["boolean", "null"] },
+        "currentResidualRisk": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
         "specialtyId": { "type": "string" },
         "specialtyCode": { "type": "string" },
         "specialtyName": { "type": "string" },
