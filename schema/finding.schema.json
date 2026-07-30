@@ -54,6 +54,7 @@
             "In Progress",
             "Pending Closure Review",
             "Verifying Effective Closure",
+            "Pending Closure Approval",
             "Closed",
             "Overdue"
           ]
@@ -63,6 +64,14 @@
         "lastStatusChange": { "type": "string", "format": "date" },
         "resolutionDeadline": { "type": "string", "format": "date" },
         "riskClassification": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "targetResidualRisk": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "achievedResidualRisk": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]
         }
