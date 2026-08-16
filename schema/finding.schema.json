@@ -34,6 +34,17 @@
         },
         "icaoReference": { "type": "string" },
         "nationalRegulation": { "type": "string" },
+        "usoapPqReference": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "criticalElement": { "type": "string" },
+              "areaCode": { "type": "string" }
+            }
+          }
+        },
         "requirementBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": {
