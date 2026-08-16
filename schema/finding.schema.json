@@ -34,11 +34,26 @@
         },
         "icaoReference": { "type": "string" },
         "nationalRegulation": { "type": "string" },
+        "usoapPqReference": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "criticalElement": { "type": "string" },
+              "areaCode": { "type": "string" }
+            }
+          }
+        },
         "requirementBreached": { "type": "string" },
         "dateIssued": { "type": "string", "format": "date" },
         "findingLevel": {
           "type": "string",
           "enum": ["Non-Compliance", "Observation", "Recommendation"]
+        },
+        "findingSeverity": {
+          "type": "string",
+          "enum": ["A", "B", "C"]
         },
         "description": { "type": "string" },
         "findingStatus": {
@@ -50,6 +65,7 @@
             "In Progress",
             "Pending Closure Review",
             "Verifying Effective Closure",
+            "Pending Closure Approval",
             "Closed",
             "Overdue"
           ]
@@ -59,6 +75,14 @@
         "lastStatusChange": { "type": "string", "format": "date" },
         "resolutionDeadline": { "type": "string", "format": "date" },
         "riskClassification": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "targetResidualRisk": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "achievedResidualRisk": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]
         }

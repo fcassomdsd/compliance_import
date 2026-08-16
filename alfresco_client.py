@@ -1,21 +1,24 @@
 import json
+import logging
 import os
 from pathlib import Path
 
 import requests
-from id_utils import build_followup_id, build_followup_id_seq
+from id_utils import build_followup_id_seq
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-DEFAULT_ALFRESCO_URL = "http://localhost:8080/alfresco/api/-default-/public/alfresco/versions/1"
-DEFAULT_CANONICAL_JSON_PATH = "Sites/vigilancia-de-la-so/documentLibrary/Inspecciones/Inspecciones/Datos de campo"
+logger = logging.getLogger(__name__)
+
+DEFAULT_ALFRESCO_URL = "http://proxy:8080/alfresco/api/-default-/public/alfresco/versions/1"
+DEFAULT_CANONICAL_JSON_PATH = "Sites/vigilancia-de-la-so/documentLibrary/Vigilancia/Datos de campo"
 DEFAULT_TIMEOUT_SECONDS = 20
 DEFAULT_RETRY_TOTAL = 3
 DEFAULT_RETRY_CONNECT = 3
 DEFAULT_RETRY_STATUS = 3
 DEFAULT_RETRY_BACKOFF_SECONDS = 0.5
+DEFAULT_RETRY_READ = 1
 DEFAULT_RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
-DEFAULT_SEQ_API_URL = "http://node-red:1880"
 DEFAULT_FOLLOWUP_SEQ_MAX_RETRIES = 5
 
 
@@ -59,10 +62,10 @@ class AlfrescoClient:
 
         self.base_url = os.getenv("ALFRESCO_URL", DEFAULT_ALFRESCO_URL)
         self.canonical_json_path = os.getenv("ALFRESCO_CANONICAL_JSON_PATH", DEFAULT_CANONICAL_JSON_PATH)
-        self.seq_api_url = os.getenv("SEQ_API_URL", DEFAULT_SEQ_API_URL)
         self.timeout_seconds = float(os.getenv("ALFRESCO_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
         self.retry_total = int(os.getenv("ALFRESCO_RETRY_TOTAL", str(DEFAULT_RETRY_TOTAL)))
         self.retry_connect = int(os.getenv("ALFRESCO_RETRY_CONNECT", str(DEFAULT_RETRY_CONNECT)))
+        self.retry_read = int(os.getenv("ALFRESCO_RETRY_READ", str(DEFAULT_RETRY_READ)))
         self.retry_status = int(os.getenv("ALFRESCO_RETRY_STATUS", str(DEFAULT_RETRY_STATUS)))
         self.retry_backoff_seconds = float(
             os.getenv("ALFRESCO_RETRY_BACKOFF_SECONDS", str(DEFAULT_RETRY_BACKOFF_SECONDS))
@@ -78,7 +81,7 @@ class AlfrescoClient:
         retry = Retry(
             total=self.retry_total,
             connect=self.retry_connect,
-            read=0,
+            read=self.retry_read,
             status=self.retry_status,
             backoff_factor=self.retry_backoff_seconds,
             status_forcelist=DEFAULT_RETRY_STATUS_CODES,
@@ -119,9 +122,8 @@ class AlfrescoClient:
             response.raise_for_status()
         except requests.HTTPError as exc:
             status = response.status_code
-            body = response.text.strip()
-            body_excerpt = body[:500] if body else "<empty response body>"
-            raise RuntimeError(f"Alfresco request failed ({status}): {body_excerpt}") from exc
+            logger.warning("Alfresco request failed (%s) for %s", status, response.request.url)
+            raise RuntimeError(f"Alfresco request failed ({status})") from exc
 
         return response
 
@@ -176,22 +178,37 @@ class AlfrescoClient:
         return self.upload_json_document(filename, finding, specialty_name)
 
 
-    def _get_next_followup_seq(self, relative_path, prefix):
-
+    def _resolve_next_followup_seq(self, relative_path, prefix):
         response = self.session.get(
-            f"{self.seq_api_url}/content/lastSeq",
-            params={"relativePath": relative_path, "prefix": prefix},
+            f"{self.base_url}/nodes/-root-/children",
+            params={
+                "relativePath": relative_path,
+                "maxItems": 1000,
+            },
             timeout=self.timeout_seconds,
         )
         self._check_response(response)
 
-        last_seq_str = response.text.strip()
-        try:
-            last_seq = int(last_seq_str)
-        except (ValueError, TypeError):
-            last_seq = -1
+        entries = response.json().get("list", {}).get("entries", [])
+        max_seq = -1
 
-        return last_seq + 1
+        for entry in entries:
+            name = entry.get("entry", {}).get("name", "")
+            if not name.startswith(prefix):
+                continue
+
+            base = name[len(prefix):].lstrip()
+            if "." in base:
+                base = base.split(".")[0]
+
+            try:
+                seq = int(base.strip())
+                if seq > max_seq:
+                    max_seq = seq
+            except (ValueError, TypeError):
+                continue
+
+        return max_seq + 1
 
 
     def _upload_followup_json(self, filename, document, specialty_name):
@@ -232,7 +249,7 @@ class AlfrescoClient:
         prefix = f"FollowUp {finding_id}"
 
         for _attempt in range(DEFAULT_FOLLOWUP_SEQ_MAX_RETRIES):
-            seq = self._get_next_followup_seq(relative_path, prefix)
+            seq = self._resolve_next_followup_seq(relative_path, prefix)
             report_data["followUpId"] = build_followup_id_seq(finding_id, seq)
             filename = f"{prefix} {seq:02d}"
 
@@ -273,121 +290,4 @@ class AlfrescoClient:
 
 
     def store_followup_evidence_file(self, specialty_name, filepath):
-
-        self._ensure_specialty_folder(specialty_name)
-
-        with open(filepath, "rb") as evidence_file:
-            files = {
-                "filedata": (filepath.name, evidence_file)
-            }
-
-            data = {
-                "name": filepath.name,
-                "nodeType": "cm:content",
-                "relativePath": f"{self.canonical_json_path}/{specialty_name}",
-                "autoRename": "true"
-            }
-
-            response = self._post(
-                f"{self.base_url}/nodes/-root-/children",
-                data=data,
-                files=files
-            )
-
-        return response.json()
-
-    def create_inspection(self, inspection):
-
-        payload = {
-            "name": inspection["inspection"]["inspectionId"],
-            "nodeType": "vso:inspection",
-            "properties": {
-                "vso:inspectionType": inspection["inspection"]["type"],
-                "vso:startDate": inspection["inspection"]["startDate"]
-            }
-        }
-
-        r = self._post(
-            f"{self.base_url}/nodes/-root-/children",
-            json=payload
-        )
-
-        return r.json()["entry"]["id"]
-
-
-    def create_checklist(self, parent, checklist):
-
-        payload = {
-            "name": checklist["name"],
-            "nodeType": "vso:inspectionChecklist",
-            "properties": {
-                "vso:checklistId": checklist["checklistId"]
-            }
-        }
-
-        r = self._post(
-            f"{self.base_url}/nodes/{parent}/children",
-            json=payload
-        )
-
-        return r.json()["entry"]["id"]
-
-
-    def create_checklist_item(self, parent, item):
-
-        payload = {
-            "name": item["itemId"],
-            "nodeType": "vso:checklistItem",
-            "properties": {
-                "vso:itemId": item["itemId"],
-                "vso:complianceStatus": item["compliance"],
-                "vso:requirementText": item.get("requirement")
-            }
-        }
-
-        r = self._post(
-            f"{self.base_url}/nodes/{parent}/children",
-            json=payload
-        )
-
-        return r.json()["entry"]["id"]
-
-
-    def upload_evidence(self, parent, filepath, metadata):
-
-        with open(filepath, "rb") as evidence_file:
-            files = {
-                "filedata": evidence_file
-            }
-
-            data = {
-                "name": metadata["file"],
-                "nodeType": "vso:evidenceItem"
-            }
-
-            r = self._post(
-                f"{self.base_url}/nodes/{parent}/children",
-                data=data,
-                files=files
-            )
-
-        return r.json()
-
-
-    def create_finding(self, parent, finding):
-
-        payload = {
-            "name": "Finding",
-            "nodeType": "vso:finding",
-            "properties": {
-                "vso:findingLevel": finding["level"],
-                "vso:description": finding["description"]
-            }
-        }
-
-        r = self._post(
-            f"{self.base_url}/nodes/{parent}/children",
-            json=payload
-        )
-
-        return r.json()
+        return self.store_evidence_file(specialty_name, filepath)

@@ -3,11 +3,15 @@ import re
 
 def _parse_inspection_code(inspection_code):
     if not isinstance(inspection_code, str):
-        return ("UNKN", "000")
+        raise ValueError(
+            f"inspection_code must be a string, got {type(inspection_code).__name__}"
+        )
 
     match = re.match(r"^([A-Z0-9]{4})-(\d{3})$", inspection_code)
     if not match:
-        return ("UNKN", "000")
+        raise ValueError(
+            f"inspection_code '{inspection_code}' does not match expected format XXXX-NNN"
+        )
 
     return (match.group(1), match.group(2))
 
@@ -44,11 +48,15 @@ def build_followup_id_seq(finding_id, seq):
 
 def _finding_segment_for_followup_and_corrective_action(finding_id):
     if not isinstance(finding_id, str):
-        return "UNKN000UNK-00"
+        raise ValueError(
+            f"finding_id must be a string, got {type(finding_id).__name__}"
+        )
 
     finding_match = re.match(r"^([A-Z0-9]{4}\d{3})-([A-Z0-9]{3,6})-(\d{2})$", finding_id)
     if not finding_match:
-        return finding_id
+        raise ValueError(
+            f"finding_id '{finding_id}' does not match expected format XXXXNNN-YYY-MM"
+        )
 
     return f"{finding_match.group(1)}{finding_match.group(2)}-{finding_match.group(3)}"
 
