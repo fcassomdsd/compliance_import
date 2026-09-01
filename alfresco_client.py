@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import requests
-from id_utils import build_followup_id_seq
+from id_utils import build_checklist_id, build_followup_id_seq
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -163,10 +163,13 @@ class AlfrescoClient:
 
     def store_checklist_document(self, checklist):
 
-        inspection_id = checklist["checklist"]["inspectionCode"]
-        specialty_code = checklist["checklist"]["specialtyCode"]
-        specialty_name = checklist["checklist"]["specialtyName"]
-        filename = f"Checklist {inspection_id} {specialty_code}"
+        checklist_data = checklist["checklist"]
+        specialty_name = checklist_data["specialtyName"]
+        checklist_id = checklist_data.get("checklistId") or build_checklist_id(
+            checklist_data["inspectionCode"],
+            checklist_data["specialtyCode"],
+        )
+        filename = f"Checklist {checklist_id}"
         return self.upload_json_document(filename, checklist, specialty_name)
 
 
@@ -190,7 +193,8 @@ class AlfrescoClient:
         self._check_response(response)
 
         entries = response.json().get("list", {}).get("entries", [])
-        max_seq = -1
+        # Follow-up sequences are 1-based: an empty folder yields 01.
+        max_seq = 0
 
         for entry in entries:
             name = entry.get("entry", {}).get("name", "")

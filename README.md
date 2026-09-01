@@ -95,12 +95,38 @@ Follow-up response:
   "followUpReportsImported": 1,
   "followUpEvidenceImported": 1,
   "followUpFilenames": [
-    "FollowUp MDPP001-VIG-01 01.json"
+    "FollowUp H-MDPPI0001-SUR-001 01.json"
   ]
 }
 ```
 
 `followUpFilenames` helps clients reference the exact JSON documents created in Alfresco.
+
+## ID formats (Nomenclatura)
+
+All identifiers follow the platform-wide naming standard. `XXXX` is the 4-character ICAO
+location code, `T` the activity-type letter, `EEE` the specialty code, `#` a digit.
+
+| Content type | Format | Example |
+|---|---|---|
+| Actividad de vigilancia (`inspectionCode`) | `XXXX-T-####` | `MDPP-I-0001` |
+| Lista de verificación (`checklistId`) | `LV-XXXXT####-EEE` | `LV-MDPPI0001-SUR` |
+| Hallazgo (`findingId`) | `H-XXXXT####-EEE-###` | `H-MDPPI0001-SUR-001` |
+| Plan de acciones correctivas (`capId`) | `P-XXXXT####-EEE###-##` | `P-MDPPI0001-SUR001-01` |
+| Seguimiento (`followUpId`) | `S-XXXXT####-EEE###-##` | `S-MDPPI0001-SUR001-01` |
+
+Notes:
+
+- `XXXXT####` is the activity code with dashes stripped (`MDPP-I-0001` → `MDPPI0001`).
+  The activity code is independent of any site-visit code.
+- Activity types: `A` Auditoría, `I` Inspección, `M` Monitoreo, `D` Revisión documental,
+  `S` Análisis de suceso.
+- Specialty codes are 3–4 uppercase letters: `APR, AVIS, FAU, PAV, SSEI, AIM, ATS, COM,
+  ECNS, EMET, FIS, MET, NAV, SAR, SUR, DPR`.
+- Finding sequences are 3 digits and **1-based** (`001` is the first finding); CAP and
+  follow-up sequences are 2 digits and 1-based (`01` is the first).
+- Alfresco document names embed the canonical ID: `Checklist <checklistId>.json`,
+  `Finding <findingId>.json`, `FollowUp <findingId> <NN>.json`.
 
 ## Payload contracts
 
@@ -141,10 +167,14 @@ Behavior notes:
 
 - Each follow-up report is matched to a source finding by `findingId`.
 - `capId` consistency is enforced:
-  - if source finding has `correctiveAction.capId` and report omits `capId`, it is backfilled
+  - if source finding has `correctiveAction.capId` (format `P-XXXXT####-EEE###-##`) and the
+    report omits `capId`, it is backfilled
   - if both exist and differ, import fails
 - Follow-up JSON filenames use sequence-based naming:
-  - `FollowUp <findingId> <NN>.json` (for example `FollowUp MDPP001-VIG-01 01.json`)
+  - `FollowUp <findingId> <NN>.json` (for example `FollowUp H-MDPPI0001-SUR-001 01.json`)
+  - the sequence is 1-based; the first follow-up for a finding is `01`
+  - the stored `followUpId` is regenerated from that sequence as `S-XXXXT####-EEE###-##`,
+    overwriting any temporary ID supplied in the payload
 
 ## Sample ZIP layouts
 

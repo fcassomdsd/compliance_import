@@ -2,21 +2,21 @@
   "schemaVersion": "1.0",
   "checklist": {
     "inspectionId": "a01kkq3s90jeabsj7dp8ddnz4qf",
-    "inspectionCode": "MDPP-001",
+    "inspectionCode": "MDPP-I-0001",
     "locationId": "a01k5qc0yxte2xts3r9btk77ft6",
     "locationName": "Aeropuerto Internacional Gregorio Luperon",
     "locationCode": "MDPP",
-    "specialtyId": "a01k-specialty-vig-0001",
-    "specialtyCode": "VIG",
+    "specialtyId": "a01k-specialty-sur-0001",
+    "specialtyCode": "SUR",
     "specialtyName": "Vigilancia",
-    "checklistId": "CHK-MDPP001-VIG",
+    "checklistId": "LV-MDPPI0001-SUR",
     "providerId": "a01kkq6arvbeef8ssmsd2aqnvyb",
     "providerName": "DTIC Instituto Dominicano de Aviación Civil"
   },
   "items": [
     {
       "itemId": "a01k65hkdvpe8v8c5gtfbcf659z",
-      "itemCode": "VIG-0030",
+      "itemCode": "SUR-0030",
       "requirement": "Establecer cursos y entrenamientos mínimos por cargo técnico.",
       "verificationMethod": "Examinar programación de cursos por cargo.",
       "comment": "Se evidenció plan anual, sin programación detallada por cargo.",
@@ -41,7 +41,7 @@
     },
     {
       "itemId": "a01k65hkdwceag9j2p68tjjxcmf",
-      "itemCode": "VIG-0070",
+      "itemCode": "SUR-0070",
       "requirement": "Proteger servicios de vigilancia contra ataques y malware.",
       "verificationMethod": "Verificar software, procedimientos y trazabilidad.",
       "comment": "Existe política de seguridad, con oportunidades de mejora en evidencia periódica.",
@@ -54,7 +54,7 @@
     },
     {
       "itemId": "a01k65hkdvdeertcaaehayk7nhn",
-      "itemCode": "VIG-0010",
+      "itemCode": "SUR-0010",
       "requirement": "Contar con sistemas y equipos de trabajo necesarios.",
       "verificationMethod": "Verificar estado de computadoras, teléfonos y equipos.",
       "comment": "Equipos observados en estado correcto.",

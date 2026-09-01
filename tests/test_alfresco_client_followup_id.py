@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 from alfresco_client import AlfrescoClient
 from id_utils import build_followup_id_seq
@@ -24,29 +25,29 @@ class FollowupReportIdTests(unittest.TestCase):
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP001-VIG-01",
+                "findingId": "H-MDPPI0001-SUR-001",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
 
         result = client.store_followup_report_document(report, "Vigilancia")
 
-        self.assertEqual("FollowUp MDPP001-VIG-01 03", result["entry"]["name"].removesuffix(".json"))
+        self.assertEqual("FollowUp H-MDPPI0001-SUR-001 03", result["entry"]["name"].removesuffix(".json"))
         self.assertEqual(
-            build_followup_id_seq("MDPP001-VIG-01", 3),
+            build_followup_id_seq("H-MDPPI0001-SUR-001", 3),
             report["followUpReport"]["followUpId"],
         )
 
     def test_store_followup_replaces_source_temporary_id(self):
         client = self._build_client()
-        client._resolve_next_followup_seq = lambda relative_path, prefix: 0
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 1
         client._upload_followup_json = lambda filename, doc, specialty: self._make_upload_ok(filename)
 
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP001-VIG-01",
-                "followUpId": "FU-MDPP001VIG-01-260414",  # temporary source ID
+                "findingId": "H-MDPPI0001-SUR-001",
+                "followUpId": "S-MDPPI0001-SUR001-99",  # temporary source ID
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
@@ -54,7 +55,7 @@ class FollowupReportIdTests(unittest.TestCase):
         client.store_followup_report_document(report, "Vigilancia")
 
         self.assertEqual(
-            build_followup_id_seq("MDPP001-VIG-01", 0),
+            build_followup_id_seq("H-MDPPI0001-SUR-001", 1),
             report["followUpReport"]["followUpId"],
         )
 
@@ -65,7 +66,7 @@ class FollowupReportIdTests(unittest.TestCase):
 
         def mock_get_seq(relative_path, prefix):
             seq_calls.append(1)
-            return len(seq_calls) - 1  # returns 0, 1, 2, ...
+            return len(seq_calls)  # returns 1, 2, 3, ...
 
         upload_calls = []
 
@@ -82,7 +83,7 @@ class FollowupReportIdTests(unittest.TestCase):
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP001-VIG-01",
+                "findingId": "H-MDPPI0001-SUR-001",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
@@ -90,7 +91,7 @@ class FollowupReportIdTests(unittest.TestCase):
         result = client.store_followup_report_document(report, "Vigilancia")
 
         self.assertEqual(2, len(upload_calls))
-        self.assertIn("FollowUp MDPP001-VIG-01 01", upload_calls[1])
+        self.assertIn("FollowUp H-MDPPI0001-SUR-001 02", upload_calls[1])
         self.assertIsNotNone(result)
 
     def test_store_followup_raises_after_max_retries(self):
@@ -101,7 +102,7 @@ class FollowupReportIdTests(unittest.TestCase):
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP001-VIG-01",
+                "findingId": "H-MDPPI0001-SUR-001",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
@@ -109,22 +110,66 @@ class FollowupReportIdTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             client.store_followup_report_document(report, "Vigilancia")
 
-    def test_store_followup_seq_zero_on_first_file(self):
+    def test_store_followup_seq_one_on_first_file(self):
         client = self._build_client()
-        client._resolve_next_followup_seq = lambda relative_path, prefix: 0
+        client._resolve_next_followup_seq = lambda relative_path, prefix: 1
         client._upload_followup_json = lambda filename, doc, specialty: self._make_upload_ok(filename)
 
         report = {
             "schemaVersion": "1.0",
             "followUpReport": {
-                "findingId": "MDPP001-VIG-01",
+                "findingId": "H-MDPPI0001-SUR-001",
                 "followUpDate": "2026-04-14T15:36:28.825Z",
             },
         }
 
         result = client.store_followup_report_document(report, "Vigilancia")
 
-        self.assertEqual("FollowUp MDPP001-VIG-01 00", result["entry"]["name"].removesuffix(".json"))
+        self.assertEqual("FollowUp H-MDPPI0001-SUR-001 01", result["entry"]["name"].removesuffix(".json"))
+
+
+class ResolveNextFollowupSeqTests(unittest.TestCase):
+
+    class _FakeResponse:
+
+        status_code = 200
+
+        def __init__(self, names):
+            self._names = names
+
+        def json(self):
+            return {"list": {"entries": [{"entry": {"name": name}} for name in self._names]}}
+
+        def raise_for_status(self):
+            return None
+
+    def _client_listing(self, names):
+        client = AlfrescoClient.__new__(AlfrescoClient)
+        client.canonical_json_path = "Sites/test/documentLibrary"
+        client.timeout_seconds = 20
+        client.base_url = "http://alfresco.test"
+        client.session = SimpleNamespace(get=lambda *args, **kwargs: self._FakeResponse(names))
+        return client
+
+    def test_empty_folder_starts_sequence_at_one(self):
+        client = self._client_listing([])
+
+        self.assertEqual(
+            1,
+            client._resolve_next_followup_seq("Sites/test", "FollowUp H-MDPPI0001-SUR-001"),
+        )
+
+    def test_next_sequence_follows_highest_existing(self):
+        client = self._client_listing([
+            "FollowUp H-MDPPI0001-SUR-001 01.json",
+            "FollowUp H-MDPPI0001-SUR-001 02.json",
+            "Finding H-MDPPI0001-SUR-001.json",
+        ])
+
+        self.assertEqual(
+            3,
+            client._resolve_next_followup_seq("Sites/test", "FollowUp H-MDPPI0001-SUR-001"),
+        )
 
 
 if __name__ == "__main__":

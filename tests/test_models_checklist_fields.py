@@ -10,18 +10,18 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-001",
+                "inspectionCode": "MDPP-I-0001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "locationName": "Aeropuerto Internacional Gregorio Luperon",
                 "locationCode": "MDPP",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
             },
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "compliance": "Compliant",
                 }
             ],
@@ -34,16 +34,16 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-001",
+                "inspectionCode": "MDPP-I-0001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
             },
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirementText": "Pregunta",
                     "itemVerificationMethod": "Verificar documentos",
                     "inspectorComment": "Comentario",

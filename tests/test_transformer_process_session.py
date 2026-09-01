@@ -11,8 +11,8 @@ from transformer import process_followup_payload, process_inspection
 from tests.support.fake_alfresco_client import FakeAlfrescoClient
 
 
-INSPECTION_CODE = "MDPP-001"
-SPECIALTY_CODE = "VIG"
+INSPECTION_CODE = "MDPP-I-0001"
+SPECIALTY_CODE = "SUR"
 FINDING_ID = build_finding_id(INSPECTION_CODE, SPECIALTY_CODE, 1)
 CAP_ID = build_corrective_action_id(FINDING_ID, 1)
 CAP_ID_MISMATCH = build_corrective_action_id(FINDING_ID, 2)
@@ -44,7 +44,7 @@ class ProcessInspectionPayloadTests(unittest.TestCase):
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirement": "Question text from checklist",
                     "compliance": "Non-compliant",
                 }
@@ -62,7 +62,7 @@ class ProcessInspectionPayloadTests(unittest.TestCase):
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Aeropuerto",
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "Generated finding description",
                     "findingLevel": "Observation"
                 }
@@ -87,7 +87,7 @@ class ProcessInspectionPayloadTests(unittest.TestCase):
         finding = client.findings[0]["finding"]
         self.assertEqual("Observation", finding["findingLevel"])
         self.assertEqual("Question text from checklist", finding["requirementBreached"])
-        self.assertEqual("VIG-0001", finding["checklistItemCode"])
+        self.assertEqual("SUR-0001", finding["checklistItemCode"])
 
     def test_process_inspection_rejects_invalid_finding_schema(self):
         checklist = {
@@ -106,7 +106,7 @@ class ProcessInspectionPayloadTests(unittest.TestCase):
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirement": "Question text from checklist",
                     "compliance": "Non-compliant",
                 }
@@ -155,7 +155,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "checklistItemCode": "VIG-0001",
+                "checklistItemCode": "SUR-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -217,7 +217,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "checklistItemCode": "VIG-0001",
+                "checklistItemCode": "SUR-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -270,7 +270,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "checklistItemCode": "VIG-0001",
+                "checklistItemCode": "SUR-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID_MISMATCH
@@ -320,7 +320,7 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationCode": "MDPP",
                     "locationName": "Location",
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "desc",
                     "correctiveAction": {
                         "capId": CAP_ID
