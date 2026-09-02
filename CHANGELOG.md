@@ -2,6 +2,32 @@
 
 All notable changes are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **BREAKING** — adopted the platform-wide Nomenclatura ID formats:
+  - `inspectionCode`: `XXXX-NNN` → `XXXX-T-####` (activity-type letter, 4-digit sequence)
+  - `checklistId`: `CHK-XXXXNNN-EEE` → `LV-XXXXT####-EEE`
+  - `findingId`: `XXXXNNN-EEE-NN` → `H-XXXXT####-EEE-###` (3-digit sequence)
+  - `capId`: `CA-XXXXNNNYYY-SS-VV` → `P-XXXXT####-EEE###-##`
+  - `followUpId`: `FU-XXXXNNNYYY-MM-VV` → `S-XXXXT####-EEE###-##`
+- **BREAKING** — `specialtyCode` and checklist `itemCode`/`checklistItemCode` patterns
+  tightened to 3–4 uppercase letters (`^[A-Z]{3,4}$`), matching the new flat 16-code
+  specialty vocabulary. This also fixes the previous inability to express codes that
+  contained `/`.
+- **BREAKING** — CAP and follow-up sequences are now 1-based; the first follow-up stored
+  for a finding is `01` (was `00`), aligning with the already 1-based finding sequence.
+- Checklist documents are stored in Alfresco as `Checklist <checklistId>.json`
+  (was `Checklist <inspectionCode> <specialtyCode>.json`), matching the convention
+  already used for findings and follow-ups.
+- Example payloads under `example data/` migrated to the new ID formats.
+
+### Removed
+
+- Unused date-based follow-up ID path (`build_followup_id`,
+  `_format_followup_date_yy_mm_dd`); the Nomenclatura sequence suffix is a plain counter.
+
 ## [0.2.1] - 2026-08-01
 
 ### Added

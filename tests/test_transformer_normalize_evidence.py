@@ -8,7 +8,7 @@ from transformer import (
 
 
 MISSING = object()
-ABCD_FINDING_ID = build_finding_id("ABCD-001", "VIG", 1)
+ABCD_FINDING_ID = build_finding_id("ABCD-I-0001", "SUR", 1)
 
 
 class NormalizeChecklistEvidenceTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
     def _base_checklist(self, evidence_value):
         item = {
             "itemId": "item-1",
-            "itemCode": "VIG-0001",
+            "itemCode": "SUR-0001",
             "compliance": "Compliant",
         }
 
@@ -27,9 +27,9 @@ class NormalizeChecklistEvidenceTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "id-1",
-                "inspectionCode": "ABCD-001",
+                "inspectionCode": "ABCD-I-0001",
                 "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
                 "providerId": "provider-1",
             },
@@ -97,7 +97,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirement": "Requirement text",
                     "compliance": "Compliant",
                 }
@@ -112,7 +112,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "desc",
                 },
             }
@@ -120,7 +120,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
 
         enriched = _enrich_findings_with_item_code(findings, checklist)
 
-        self.assertEqual("VIG-0001", enriched[0]["finding"]["checklistItemCode"])
+        self.assertEqual("SUR-0001", enriched[0]["finding"]["checklistItemCode"])
         self.assertEqual("MDPP", enriched[0]["finding"]["locationCode"])
         self.assertEqual("Requirement text", enriched[0]["finding"]["requirementBreached"])
 
@@ -129,7 +129,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "compliance": "Compliant",
                 }
             ]
@@ -143,7 +143,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Location",
-                    "checklistItemCode": "VIG-0002",
+                    "checklistItemCode": "SUR-0002",
                     "description": "desc",
                 },
             }
@@ -160,13 +160,13 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationName": "Location",
                 "specialtyId": "specialty-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
             },
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirementText": "Requirement text",
                     "complianceStatus": "Compliant",
                 }
@@ -177,7 +177,7 @@ class EnrichFindingsWithItemCodeTests(unittest.TestCase):
                 "schemaVersion": "1.0",
                 "finding": {
                     "findingId": ABCD_FINDING_ID,
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "desc",
                 },
             }

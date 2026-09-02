@@ -1,49 +1,68 @@
 import re
 
 
+INSPECTION_CODE_PATTERN = re.compile(r"^([A-Z0-9]{4})-([A-Z])-(\d{4})$")
+FINDING_ID_PATTERN = re.compile(r"^H-([A-Z0-9]{4}[A-Z]\d{4})-([A-Z]{3,4})-(\d{3})$")
+
+DEFAULT_SPECIALTY_CODE = "UNK"
+
+
 def _parse_inspection_code(inspection_code):
     if not isinstance(inspection_code, str):
         raise ValueError(
             f"inspection_code must be a string, got {type(inspection_code).__name__}"
         )
 
-    match = re.match(r"^([A-Z0-9]{4})-(\d{3})$", inspection_code)
+    match = INSPECTION_CODE_PATTERN.match(inspection_code)
     if not match:
         raise ValueError(
-            f"inspection_code '{inspection_code}' does not match expected format XXXX-NNN"
+            f"inspection_code '{inspection_code}' does not match expected format XXXX-T-####"
         )
 
-    return (match.group(1), match.group(2))
+    return (match.group(1), match.group(2), match.group(3))
+
+
+def _compact_activity_code(inspection_code):
+    icao, activity_type, sequence = _parse_inspection_code(inspection_code)
+    return f"{icao}{activity_type}{sequence}"
+
+
+def _normalize_specialty_code(specialty_code):
+    if isinstance(specialty_code, str) and specialty_code:
+        return specialty_code
+
+    return DEFAULT_SPECIALTY_CODE
+
+
+def _normalize_sequence(sequence):
+    if isinstance(sequence, bool) or not isinstance(sequence, int):
+        return 1
+
+    return max(1, sequence)
 
 
 def build_checklist_id(inspection_code, specialty_code):
-    icao, seq = _parse_inspection_code(inspection_code)
-    normalized_specialty = specialty_code if isinstance(specialty_code, str) and specialty_code else "UNK"
-    return f"CHK-{icao}{seq}-{normalized_specialty}"
+    compact_activity = _compact_activity_code(inspection_code)
+    return f"LV-{compact_activity}-{_normalize_specialty_code(specialty_code)}"
 
 
 def build_finding_id(inspection_code, specialty_code, finding_sequence):
-    icao, seq = _parse_inspection_code(inspection_code)
-    normalized_specialty = specialty_code if isinstance(specialty_code, str) and specialty_code else "UNK"
-    normalized_finding_sequence = int(finding_sequence) if isinstance(finding_sequence, int) else 0
-    return f"{icao}{seq}-{normalized_specialty}-{normalized_finding_sequence:02d}"
+    compact_activity = _compact_activity_code(inspection_code)
+    normalized_specialty = _normalize_specialty_code(specialty_code)
+    normalized_finding_sequence = _normalize_sequence(finding_sequence)
+    return f"H-{compact_activity}-{normalized_specialty}-{normalized_finding_sequence:03d}"
 
 
 def build_corrective_action_id(finding_id, corrective_action_sequence):
     finding_segment = _finding_segment_for_followup_and_corrective_action(finding_id)
-    normalized_sequence = int(corrective_action_sequence) if isinstance(corrective_action_sequence, int) else 0
-    return f"CA-{finding_segment}-{normalized_sequence:02d}"
-
-
-def build_followup_id(finding_id, followup_date):
-    finding_segment = _finding_segment_for_followup_and_corrective_action(finding_id)
-    return f"FU-{finding_segment}-{_format_followup_date_yy_mm_dd(followup_date)}"
+    normalized_sequence = _normalize_sequence(corrective_action_sequence)
+    return f"P-{finding_segment}-{normalized_sequence:02d}"
 
 
 def build_followup_id_seq(finding_id, seq):
     finding_segment = _finding_segment_for_followup_and_corrective_action(finding_id)
-    seq_int = int(seq) if isinstance(seq, (int, str)) and str(seq).lstrip("-").isdigit() else 0
-    return f"FU-{finding_segment}-{seq_int:02d}"
+    seq_int = int(seq) if isinstance(seq, (int, str)) and str(seq).lstrip("-").isdigit() else 1
+    return f"S-{finding_segment}-{max(1, seq_int):02d}"
 
 
 def _finding_segment_for_followup_and_corrective_action(finding_id):
@@ -52,21 +71,10 @@ def _finding_segment_for_followup_and_corrective_action(finding_id):
             f"finding_id must be a string, got {type(finding_id).__name__}"
         )
 
-    finding_match = re.match(r"^([A-Z0-9]{4}\d{3})-([A-Z0-9]{3,6})-(\d{2})$", finding_id)
+    finding_match = FINDING_ID_PATTERN.match(finding_id)
     if not finding_match:
         raise ValueError(
-            f"finding_id '{finding_id}' does not match expected format XXXXNNN-YYY-MM"
+            f"finding_id '{finding_id}' does not match expected format H-XXXXT####-EEE-###"
         )
 
-    return f"{finding_match.group(1)}{finding_match.group(2)}-{finding_match.group(3)}"
-
-
-def _format_followup_date_yy_mm_dd(followup_date):
-    if not isinstance(followup_date, str):
-        return "000000"
-
-    date_match = re.match(r"^(\d{4})-(\d{2})-(\d{2})", followup_date)
-    if not date_match:
-        return "000000"
-
-    return f"{date_match.group(1)[2:]}{date_match.group(2)}{date_match.group(3)}"
+    return f"{finding_match.group(1)}-{finding_match.group(2)}{finding_match.group(3)}"

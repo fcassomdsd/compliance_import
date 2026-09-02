@@ -16,8 +16,8 @@ from main import app
 from tests.support.fake_alfresco_client import FakeAlfrescoClient
 
 
-INSPECTION_CODE = "MDPP-001"
-SPECIALTY_CODE = "VIG"
+INSPECTION_CODE = "MDPP-I-0001"
+SPECIALTY_CODE = "SUR"
 FINDING_ID = build_finding_id(INSPECTION_CODE, SPECIALTY_CODE, 1)
 CAP_ID = build_corrective_action_id(FINDING_ID, 1)
 
@@ -59,7 +59,7 @@ class ImportInspectionApiTests(unittest.TestCase):
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirement": "Question text from checklist",
                     "compliance": "Non-compliant"
                 }
@@ -76,7 +76,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "providerId": "provider-1",
                     "locationId": "location-1",
                     "locationName": "Aeropuerto",
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "Generated finding description",
                     "findingLevel": "Observation"
                 }
@@ -118,7 +118,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "checklistItemCode": "VIG-0001",
+                "checklistItemCode": "SUR-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -185,7 +185,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                 "locationId": "location-1",
                 "locationCode": "MDPP",
                 "locationName": "Location",
-                "checklistItemCode": "VIG-0001",
+                "checklistItemCode": "SUR-0001",
                 "description": "desc",
                 "correctiveAction": {
                     "capId": CAP_ID
@@ -250,7 +250,7 @@ class ImportInspectionApiTests(unittest.TestCase):
                     "locationId": "location-1",
                     "locationCode": "MDPP",
                     "locationName": "Location",
-                    "checklistItemCode": "VIG-0001",
+                    "checklistItemCode": "SUR-0001",
                     "description": "desc",
                     "correctiveAction": {
                         "capId": CAP_ID

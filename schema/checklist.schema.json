@@ -15,7 +15,7 @@
         "inspectionId": { "type": "string" },
         "inspectionCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{4}-\\d{3}$"
+          "pattern": "^[A-Z0-9]{4}-[A-Z]-\\d{4}$"
         },
         "scope": { "type": "string" },
         "completionDate": { "type": "string", "format": "date" },
@@ -25,12 +25,12 @@
         "specialtyId": { "type": "string" },
         "specialtyCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{3,6}$"
+          "pattern": "^[A-Z]{3,4}$"
         },
         "specialtyName": { "type": "string" },
         "checklistId": {
           "type": "string",
-          "pattern": "^CHK-[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}$"
+          "pattern": "^LV-[A-Z0-9]{4}[A-Z]\\d{4}-[A-Z]{3,4}$"
         },
         "providerId": { "type": "string" },
         "providerName": { "type": "string" }
@@ -46,7 +46,7 @@
           "itemId": { "type": "string" },
           "itemCode": {
             "type": "string",
-            "pattern": "^[A-Z0-9]{3,6}-\\d{4}$"
+            "pattern": "^[A-Z]{3,4}-\\d{4}$"
           },
           "requirement": { "type": "string" },
           "requirementText": { "type": "string" },
