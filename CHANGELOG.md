@@ -10,8 +10,8 @@ All notable changes are documented in this file.
   - `inspectionCode`: `XXXX-NNN` → `XXXX-T-####` (activity-type letter, 4-digit sequence)
   - `checklistId`: `CHK-XXXXNNN-EEE` → `LV-XXXXT####-EEE`
   - `findingId`: `XXXXNNN-EEE-NN` → `H-XXXXT####-EEE-###` (3-digit sequence)
-  - `capId`: `CA-…` → `P-XXXXT####-EEE###-##`
-  - `followUpId`: `FU-…` → `S-XXXXT####-EEE###-##`
+  - `capId`: `CA-XXXXNNNYYY-SS-VV` → `P-XXXXT####-EEE###-##`
+  - `followUpId`: `FU-XXXXNNNYYY-MM-VV` → `S-XXXXT####-EEE###-##`
 - **BREAKING** — `specialtyCode` and checklist `itemCode`/`checklistItemCode` patterns
   tightened to 3–4 uppercase letters (`^[A-Z]{3,4}$`), matching the new flat 16-code
   specialty vocabulary. This also fixes the previous inability to express codes that
