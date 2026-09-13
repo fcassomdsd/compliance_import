@@ -15,7 +15,7 @@
         "inspectionId": { "type": "string" },
         "inspectionCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{4}-[A-Z]-\\d{4}$"
+          "pattern": "^(?:AV-)?[A-Z0-9]{4}-[A-Z]-\\d{4}$"
         },
         "scope": { "type": "string" },
         "completionDate": { "type": "string", "format": "date" },

@@ -1,7 +1,10 @@
 import re
 
 
-INSPECTION_CODE_PATTERN = re.compile(r"^([A-Z0-9]{4})-([A-Z])-(\d{4})$")
+# Activity codes are AV-XXXX-T-#### platform-wide. The AV- prefix was previously
+# rejected here even though compliance_web and compliance_cmis both accept it, so
+# canonical codes failed validation with a 422.
+INSPECTION_CODE_PATTERN = re.compile(r"^(?:AV-)?([A-Z0-9]{4})-([A-Z])-(\d{4})$")
 FINDING_ID_PATTERN = re.compile(r"^H-([A-Z0-9]{4}[A-Z]\d{4})-([A-Z]{3,4})-(\d{3})$")
 
 DEFAULT_SPECIALTY_CODE = "UNK"
@@ -16,7 +19,8 @@ def _parse_inspection_code(inspection_code):
     match = INSPECTION_CODE_PATTERN.match(inspection_code)
     if not match:
         raise ValueError(
-            f"inspection_code '{inspection_code}' does not match expected format XXXX-T-####"
+            f"inspection_code '{inspection_code}' does not match expected format AV-XXXX-T-#### "
+            f"(the AV- prefix is optional)"
         )
 
     return (match.group(1), match.group(2), match.group(3))
