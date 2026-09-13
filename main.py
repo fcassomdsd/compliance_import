@@ -7,6 +7,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from jsonschema.exceptions import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,17 +82,51 @@ def _safe_extract(zip_ref, destination_dir):
     zip_ref.extractall(destination)
 
 
+UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+
+
+async def _stream_upload_to_disk(file, destination, max_bytes):
+    """Stream an upload to disk in chunks, enforcing a hard byte cap.
+
+    The cap is checked as bytes arrive, so an oversized payload is rejected
+    without ever being buffered whole in memory.
+    """
+    written = 0
+    with open(destination, "wb") as out:
+        while True:
+            chunk = await file.read(UPLOAD_CHUNK_SIZE_BYTES)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Upload exceeds maximum size of {max_bytes} bytes",
+                )
+            out.write(chunk)
+
+    if written == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    return written
+
+
+def _extract_and_process(zip_path, destination_dir, processor):
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        _safe_extract(zip_ref, destination_dir)
+
+    return processor(destination_dir)
+
+
 async def _process_uploaded_zip(file, processor):
     with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = f"{tmpdir}/inspection.zip"
+        zip_path = os.path.join(tmpdir, "inspection.zip")
 
-        with open(zip_path, "wb") as f:
-            f.write(await file.read())
+        await _stream_upload_to_disk(file, zip_path, MAX_UPLOAD_SIZE_BYTES)
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            _safe_extract(zip_ref, tmpdir)
-
-        return processor(tmpdir)
+        # Extraction and the synchronous Alfresco client both block, so run them
+        # in a worker thread: one slow import must not stall the event loop.
+        return await run_in_threadpool(_extract_and_process, zip_path, tmpdir, processor)
 
 
 @app.post("/inspection-import")

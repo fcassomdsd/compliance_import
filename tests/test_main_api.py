@@ -301,6 +301,27 @@ class ImportInspectionApiTests(unittest.TestCase):
             response.json(),
         )
 
+    def test_import_rejects_upload_larger_than_configured_cap(self):
+        payload = self._build_zip_bytes({"checklist.json": json.dumps({"test": True})})
+
+        with patch.object(main, "MAX_UPLOAD_SIZE_BYTES", 10):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("payload.zip", payload, "application/zip")},
+            )
+
+        self.assertEqual(413, response.status_code)
+        self.assertIn("maximum size", response.json()["detail"])
+
+    def test_import_rejects_empty_upload(self):
+        response = self.client.post(
+            "/inspection-import",
+            files={"file": ("payload.zip", b"", "application/zip")},
+        )
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("empty", response.json()["detail"])
+
 
 class AuthMiddlewareTests(unittest.TestCase):
 
