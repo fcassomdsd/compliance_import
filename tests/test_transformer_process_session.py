@@ -362,5 +362,72 @@ class ProcessFollowupPayloadTests(unittest.TestCase):
         self.assertEqual([f"FollowUp {FINDING_ID} 01.json"], result["followUpFilenames"])
 
 
+class FailingFindingWriteClient(FakeAlfrescoClient):
+    """Fake client whose second write fails, to exercise batch compensation."""
+
+    def store_finding_document(self, finding):
+        raise RuntimeError("Alfresco request failed (502)")
+
+
+class BatchCompensationTests(unittest.TestCase):
+
+    def setUp(self):
+        FakeAlfrescoClient.instances = []
+        FailingFindingWriteClient.instances = []
+
+    def test_failed_inspection_write_rolls_the_batch_back(self):
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-rollback",
+                "inspectionCode": INSPECTION_CODE,
+                "locationId": "location-1",
+                "locationName": "Aeropuerto",
+                "locationCode": "MDPP",
+                "specialtyId": "specialty-1",
+                "specialtyCode": SPECIALTY_CODE,
+                "specialtyName": "Vigilancia",
+                "providerId": "provider-1",
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "requirement": "Question text from checklist",
+                    "compliance": "Non-compliant",
+                }
+            ],
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "SUR-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation",
+                }
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "checklist.json").write_text(json.dumps(checklist), encoding="utf-8")
+            Path(tmpdir, "findings.json").write_text(json.dumps(findings), encoding="utf-8")
+
+            with patch("transformer.AlfrescoClient", FailingFindingWriteClient):
+                with self.assertRaises(RuntimeError):
+                    process_inspection(tmpdir)
+
+        client = FakeAlfrescoClient.instances[-1]
+        self.assertEqual(1, client.rollback_count, "the failed batch should be compensated")
+        self.assertFalse(client.batch_active)
+
+
 if __name__ == "__main__":
     unittest.main()
