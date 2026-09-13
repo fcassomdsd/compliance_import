@@ -1,0 +1,10 @@
+# Development and test dependencies.
+#
+# Install with: pip install -r requirements-dev.txt
+#
+# httpx is required by fastapi.testclient (Starlette's TestClient), which the
+# unittest suite uses. It is not needed by the service at runtime, which is why
+# it lives here rather than in requirements.txt — CI installed only the runtime
+# requirements and the suite could not even import.
+-r requirements.txt
+httpx==0.28.1

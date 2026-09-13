@@ -23,6 +23,9 @@ FastAPI service that imports inspection and follow-up payloads from ZIP files, v
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# To run the test suite, install the dev extras as well (adds httpx).
+pip install -r requirements-dev.txt
 ```
 
 Note: This repository may already include `.venv/` in some developer setups. The scripts use `venv/` by default.
