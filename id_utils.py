@@ -1,11 +1,9 @@
-import re
+from domain_rules import FINDING_ID_PATTERN, INSPECTION_CODE_PATTERN
 
-
-# Activity codes are AV-XXXX-T-#### platform-wide. The AV- prefix was previously
-# rejected here even though compliance_web and compliance_cmis both accept it, so
-# canonical codes failed validation with a 422.
-INSPECTION_CODE_PATTERN = re.compile(r"^(?:AV-)?([A-Z0-9]{4})-([A-Z])-(\d{4})$")
-FINDING_ID_PATTERN = re.compile(r"^H-([A-Z0-9]{4}[A-Z]\d{4})-([A-Z]{3,4})-(\d{3})$")
+# INSPECTION_CODE_PATTERN/FINDING_ID_PATTERN are the canonical Nomenclatura
+# patterns, loaded from the shared domain-rule spec. Activity codes are
+# AV-XXXX-T-#### platform-wide; the AV- prefix is optional on input because
+# this service has always accepted the bare XXXX-T-#### form.
 
 DEFAULT_SPECIALTY_CODE = "UNK"
 
