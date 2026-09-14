@@ -9,6 +9,7 @@ FastAPI service that imports inspection and follow-up payloads from ZIP files, v
   - `POST /inspection-import`
   - `POST /followup-import`
 - Supports optional API key authentication via `X-API-Key` header (configured with `IMPORT_API_KEY`).
+- Requires an operator Alfresco ticket (`X-Alfresco-Ticket`) by default, verifies it against the Alfresco authentication API, and records the resulting identity (`enteredBy`, `enteredAt`, `enteredVia`) on every imported payload. The ticket is also used for the Alfresco writes, so the stored documents carry the inspector as `cm:creator`.
 - Validates incoming JSON using the schemas in `schema/`.
 - Performs domain transformations (for example, finding enrichment from checklist data).
 - Protects against ZIP bombs and enforces upload size limits.
@@ -59,23 +60,16 @@ http://127.0.0.1:8000/docs
 
 ### 4. Upload a ZIP payload
 
-If `IMPORT_API_KEY` is configured, include the `X-API-Key` header:
+Every import must carry the operator's Alfresco ticket, and (when configured) the service API key:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/inspection-import" \
   -H "X-API-Key: your-api-key" \
+  -H "X-Alfresco-Ticket: TICKET_..." \
   -F "file=@/absolute/path/to/inspection_payload.zip"
 ```
 
-Without API key configured (development mode):
-
-```bash
-curl -X POST "http://127.0.0.1:8000/inspection-import" \
-  -F "file=@/absolute/path/to/inspection_payload.zip"
-
-curl -X POST "http://127.0.0.1:8000/followup-import" \
-  -F "file=@/absolute/path/to/followup_payload.zip"
-```
+The ticket is verified with `GET /people/-me-`; a missing ticket is rejected with 401 while `REQUIRE_OPERATOR_IDENTITY` is on, and an invalid or expired ticket is always rejected. The verified identity is stamped onto the payload (`enteredBy`/`enteredByDisplayName`/`enteredAt`/`enteredVia`) before it is stored. Set `REQUIRE_OPERATOR_IDENTITY=false` only for local or automated runs that write as the service account (`enteredVia: "service"`).
 
 ## API responses
 
@@ -237,6 +231,7 @@ Core environment variables:
 Authentication:
 
 - `IMPORT_API_KEY` — if set, all requests must include `X-API-Key` header matching this value
+- `REQUIRE_OPERATOR_IDENTITY` (default: `true`) — when on, every import must present a valid `X-Alfresco-Ticket`; the ticket identifies the operator, is recorded on the payload, and authenticates the Alfresco writes (`cm:creator`)
 
 Upload limits:
 
