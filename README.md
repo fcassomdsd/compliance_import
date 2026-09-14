@@ -147,6 +147,13 @@ Behavior notes:
 - Each finding must map to a checklist item via `finding.checklistItemCode`.
 - `finding.requirementBreached` is auto-populated from checklist item text fields.
 - Missing finding metadata may be backfilled from checklist metadata (`specialty*`, `providerId`, `location*`).
+- `checklist.startDate` / `checklist.endDate` are the inspection window recorded in the field
+  (`checklist.completionDate` is kept for compatibility and normally equals `endDate`). The
+  checklist app exports all three; Alfresco stores the window on the inspection folder, which is
+  what dates the checklist items filed under it — checklist items have no date property of their
+  own. See the `compliance_checklist` and `compliance_cmis` repositories for the consuming side.
+- A finding without its own `dateIssued` falls back to `checklist.startDate` when computing its
+  `resolutionDeadline` (severity `A`/`B`/`C` allow 7/30/90 days).
 
 ### Follow-up import (`POST /followup-import`)
 

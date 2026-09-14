@@ -18,6 +18,8 @@
           "pattern": "^(?:AV-)?[A-Z0-9]{4}-[A-Z]-\\d{4}$"
         },
         "scope": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
         "completionDate": { "type": "string", "format": "date" },
         "locationId": { "type": "string" },
         "locationCode": { "type": "string" },
