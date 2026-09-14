@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
@@ -10,6 +10,32 @@ from models import (
     validate_followup_reports,
     validate_followup_source_findings,
 )
+
+
+def _entered_at_now():
+    """Server-side UTC timestamp; the authoritative entry time."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _apply_operator_attribution(section, operator, entered_at):
+    """Stamp the verified operator onto a canonical payload section.
+
+    ``section`` is the ``checklist`` / ``finding`` / ``followUpReport`` object
+    that compliance_cmis later reads. ``enteredBy`` is authoritative (resolved
+    from the Alfresco ticket by main.py); the app's pre-verification
+    ``declaredBy``/``inspectorId`` are left as received for mismatch auditing.
+    """
+    if not isinstance(section, dict):
+        return
+
+    section["enteredAt"] = entered_at
+
+    if operator:
+        section["enteredBy"] = operator.get("userName")
+        section["enteredByDisplayName"] = operator.get("displayName")
+        section["enteredVia"] = "operator-login"
+    else:
+        section["enteredVia"] = "service"
 
 
 def _find_file(root_path, filename):
@@ -315,7 +341,7 @@ def _validate_followup_evidence_sources(reports, evidence_files):
     return evidence_name_to_file
 
 
-def process_inspection(path):
+def process_inspection(path, operator=None):
 
     checklist_path = _find_file(path, "checklist.json")
 
@@ -352,7 +378,12 @@ def process_inspection(path):
         except (ValueError, TypeError):
             pass
 
-    alf = AlfrescoClient()
+    entered_at = _entered_at_now()
+    _apply_operator_attribution(checklist.get("checklist"), operator, entered_at)
+    for finding in findings:
+        _apply_operator_attribution(finding.get("finding"), operator, entered_at)
+
+    alf = AlfrescoClient(ticket=(operator or {}).get("ticket"))
     specialty_name = checklist["checklist"]["specialtyName"]
 
     alf.begin_batch()
@@ -377,7 +408,7 @@ def process_inspection(path):
     }
 
 
-def process_followup_payload(path):
+def process_followup_payload(path, operator=None):
 
     source_findings = _load_followup_source_findings(path)
     followup_reports = _load_followup_reports(path)
@@ -397,7 +428,11 @@ def process_followup_payload(path):
         if finding_id and specialty_name:
             finding_id_to_specialty_name[finding_id] = specialty_name
 
-    alf = AlfrescoClient()
+    entered_at = _entered_at_now()
+    for report in reports:
+        _apply_operator_attribution(report.get("followUpReport"), operator, entered_at)
+
+    alf = AlfrescoClient(ticket=(operator or {}).get("ticket"))
     followup_filenames = []
 
     alf.begin_batch()

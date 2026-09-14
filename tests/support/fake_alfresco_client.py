@@ -2,7 +2,8 @@ class FakeAlfrescoClient:
 
     instances = []
 
-    def __init__(self):
+    def __init__(self, ticket=None):
+        self.ticket = ticket
         self.checklists = []
         self.findings = []
         self.evidence = []

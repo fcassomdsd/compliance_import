@@ -85,7 +85,13 @@
         "achievedResidualRisk": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]
-        }
+        },
+        "enteredBy": { "type": "string" },
+        "enteredByDisplayName": { "type": "string" },
+        "enteredAt": { "type": "string" },
+        "enteredVia": { "type": "string", "enum": ["operator-login", "service"] },
+        "inspectorId": { "type": "string" },
+        "declaredBy": { "type": "string" }
       }
     }
   }

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from id_utils import build_corrective_action_id, build_finding_id
 
 import main
+from alfresco_client import OperatorIdentityError
 from main import app
 from tests.support.fake_alfresco_client import FakeAlfrescoClient
 
@@ -21,12 +22,28 @@ SPECIALTY_CODE = "SUR"
 FINDING_ID = build_finding_id(INSPECTION_CODE, SPECIALTY_CODE, 1)
 CAP_ID = build_corrective_action_id(FINDING_ID, 1)
 
+OPERATOR_HEADERS = {"X-Alfresco-Ticket": "test-ticket"}
+OPERATOR_IDENTITY = {
+    "userName": "fernando.casso",
+    "displayName": "Fernando Casso",
+    "personId": "person-1",
+}
+
+
+def patch_operator_identity(case):
+    """Stub the Alfresco identity lookup so tests never reach the network."""
+
+    patcher = patch("main.resolve_ticket_identity", return_value=dict(OPERATOR_IDENTITY))
+    patcher.start()
+    case.addCleanup(patcher.stop)
+
 
 class ImportInspectionApiTests(unittest.TestCase):
 
     def setUp(self):
         FakeAlfrescoClient.instances = []
-        self.client = TestClient(app)
+        patch_operator_identity(self)
+        self.client = TestClient(app, headers=dict(OPERATOR_HEADERS))
 
     def _build_zip_bytes(self, files):
         buffer = io.BytesIO()
@@ -327,7 +344,8 @@ class AuthMiddlewareTests(unittest.TestCase):
 
     def setUp(self):
         FakeAlfrescoClient.instances = []
-        self.client = TestClient(app)
+        patch_operator_identity(self)
+        self.client = TestClient(app, headers=dict(OPERATOR_HEADERS))
 
     @staticmethod
     def _empty_zip():
@@ -374,6 +392,141 @@ class AuthMiddlewareTests(unittest.TestCase):
             )
 
         self.assertIn(response.status_code, (200, 400))
+
+
+class OperatorIdentityTests(unittest.TestCase):
+    """Operator ticket handling on the import endpoints."""
+
+    def setUp(self):
+        FakeAlfrescoClient.instances = []
+        self.client = TestClient(app)
+
+    def _minimal_inspection_zip(self, checklist_extra=None, finding_extra=None):
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-1",
+                "inspectionCode": INSPECTION_CODE,
+                "locationId": "location-1",
+                "locationName": "Aeropuerto",
+                "locationCode": "MDPP",
+                "specialtyId": "specialty-1",
+                "specialtyCode": SPECIALTY_CODE,
+                "specialtyName": "Vigilancia",
+                "providerId": "provider-1",
+                **(checklist_extra or {}),
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "requirement": "Question text from checklist",
+                    "compliance": "Non-compliant",
+                }
+            ],
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "SUR-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation",
+                    **(finding_extra or {}),
+                },
+            }
+        ]
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr("checklist.json", json.dumps(checklist))
+            zip_file.writestr("findings.json", json.dumps(findings))
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _post(self, payload, headers=None):
+        return self.client.post(
+            "/inspection-import",
+            files={"file": ("inspection_payload_test.zip", payload, "application/zip")},
+            headers=headers,
+        )
+
+    def test_rejects_import_without_ticket_in_strict_mode(self):
+        with patch("main.REQUIRE_OPERATOR_IDENTITY", True):
+            response = self._post(self._minimal_inspection_zip())
+
+        self.assertEqual(401, response.status_code)
+        self.assertIn("X-Alfresco-Ticket", response.json()["detail"])
+
+    def test_rejects_import_with_a_ticket_alfresco_refuses(self):
+        with patch(
+            "main.resolve_ticket_identity",
+            side_effect=OperatorIdentityError("Alfresco rejected the operator ticket (status 401)"),
+        ):
+            response = self._post(self._minimal_inspection_zip(), headers=dict(OPERATOR_HEADERS))
+
+        self.assertEqual(401, response.status_code)
+        self.assertIn("rejected", response.json()["detail"])
+
+    def test_stamps_the_verified_operator_and_uses_its_ticket(self):
+        patch_operator_identity(self)
+
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self._post(self._minimal_inspection_zip(), headers=dict(OPERATOR_HEADERS))
+
+        self.assertEqual(200, response.status_code)
+
+        alf = FakeAlfrescoClient.instances[0]
+        self.assertEqual("test-ticket", alf.ticket)
+
+        stored_checklist = alf.checklists[0]["checklist"]
+        self.assertEqual("fernando.casso", stored_checklist["enteredBy"])
+        self.assertEqual("Fernando Casso", stored_checklist["enteredByDisplayName"])
+        self.assertEqual("operator-login", stored_checklist["enteredVia"])
+        self.assertTrue(stored_checklist["enteredAt"].endswith("Z"))
+
+        stored_finding = alf.findings[0]["finding"]
+        self.assertEqual("fernando.casso", stored_finding["enteredBy"])
+        self.assertEqual("operator-login", stored_finding["enteredVia"])
+
+    def test_keeps_the_declared_operator_for_mismatch_auditing(self):
+        patch_operator_identity(self)
+        payload = self._minimal_inspection_zip(
+            checklist_extra={"declaredBy": "anderson.marmolejos", "inspectorId": "inspector-1"}
+        )
+
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self._post(payload, headers=dict(OPERATOR_HEADERS))
+
+        self.assertEqual(200, response.status_code)
+
+        stored_checklist = FakeAlfrescoClient.instances[0].checklists[0]["checklist"]
+        self.assertEqual("anderson.marmolejos", stored_checklist["declaredBy"])
+        self.assertEqual("inspector-1", stored_checklist["inspectorId"])
+        self.assertEqual("fernando.casso", stored_checklist["enteredBy"])
+
+    def test_allows_service_mode_when_identity_is_not_required(self):
+        with patch("main.REQUIRE_OPERATOR_IDENTITY", False), patch(
+            "transformer.AlfrescoClient", FakeAlfrescoClient
+        ):
+            response = self._post(self._minimal_inspection_zip())
+
+        self.assertEqual(200, response.status_code)
+
+        alf = FakeAlfrescoClient.instances[0]
+        self.assertIsNone(alf.ticket)
+
+        stored_checklist = alf.checklists[0]["checklist"]
+        self.assertEqual("service", stored_checklist["enteredVia"])
+        self.assertNotIn("enteredBy", stored_checklist)
+        self.assertTrue(stored_checklist["enteredAt"].endswith("Z"))
 
 
 class ZipBombProtectionTests(unittest.TestCase):

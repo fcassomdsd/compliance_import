@@ -61,9 +61,61 @@ def _read_required_setting(env_name, default_secret_path):
     )
 
 
+class OperatorIdentityError(RuntimeError):
+    """Raised when an operator ticket is missing, invalid or unverifiable."""
+
+
+def resolve_ticket_identity(ticket):
+    """Resolve an Alfresco ticket to the identity it belongs to.
+
+    Returns ``{"userName", "displayName", "personId"}``. Raises
+    ``OperatorIdentityError`` when the ticket is not accepted, so a caller can
+    reject the request instead of writing unattributed or misattributed data.
+    """
+
+    if not ticket or not isinstance(ticket, str):
+        raise OperatorIdentityError("Missing operator ticket")
+
+    base_url = os.getenv("ALFRESCO_URL", DEFAULT_ALFRESCO_URL)
+    timeout = float(os.getenv("ALFRESCO_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
+
+    try:
+        response = requests.get(
+            f"{base_url}/people/-me-",
+            params={"alf_ticket": ticket},
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        raise OperatorIdentityError(f"Could not reach Alfresco to verify the operator ticket: {exc}") from exc
+
+    if response.status_code != 200:
+        raise OperatorIdentityError(
+            f"Alfresco rejected the operator ticket (status {response.status_code})"
+        )
+
+    try:
+        entry = response.json().get("entry") or {}
+    except ValueError as exc:
+        raise OperatorIdentityError("Alfresco returned an unreadable identity response") from exc
+
+    user_name = entry.get("userName") or entry.get("id")
+    if not user_name:
+        raise OperatorIdentityError("Alfresco identity response has no user name")
+
+    display_name = " ".join(
+        part for part in [entry.get("firstName"), entry.get("lastName")] if part
+    ).strip()
+
+    return {
+        "userName": user_name,
+        "displayName": display_name or user_name,
+        "personId": entry.get("id"),
+    }
+
+
 class AlfrescoClient:
 
-    def __init__(self):
+    def __init__(self, ticket=None):
 
         self.base_url = os.getenv("ALFRESCO_URL", DEFAULT_ALFRESCO_URL)
         self.canonical_json_path = os.getenv("ALFRESCO_CANONICAL_JSON_PATH", DEFAULT_CANONICAL_JSON_PATH)
@@ -76,11 +128,19 @@ class AlfrescoClient:
             os.getenv("ALFRESCO_RETRY_BACKOFF_SECONDS", str(DEFAULT_RETRY_BACKOFF_SECONDS))
         )
 
-        username = _read_required_setting("ALFRESCO_USERNAME", "/run/secrets/alfresco_username")
-        password = _read_required_setting("ALFRESCO_PASSWORD", "/run/secrets/alfresco_password")
-
+        self.ticket = ticket or None
         self.session = requests.Session()
-        self.session.auth = (username, password)
+
+        if self.ticket:
+            # Operator-authenticated writes: Alfresco resolves the ticket to the
+            # inspector, so the documents it stores carry the inspector as
+            # cm:creator/cm:modifier instead of the service account.
+            self.session.params = {"alf_ticket": self.ticket}
+        else:
+            username = _read_required_setting("ALFRESCO_USERNAME", "/run/secrets/alfresco_username")
+            password = _read_required_setting("ALFRESCO_PASSWORD", "/run/secrets/alfresco_password")
+            self.session.auth = (username, password)
+
         self._ensured_specialty_folders = set()
         # Nodes created since begin_batch(), used to compensate a failed import.
         self._batch_created_ids = []
