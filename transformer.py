@@ -355,13 +355,20 @@ def process_inspection(path):
     alf = AlfrescoClient()
     specialty_name = checklist["checklist"]["specialtyName"]
 
-    alf.store_checklist_document(checklist)
+    alf.begin_batch()
+    try:
+        alf.store_checklist_document(checklist)
 
-    for finding in findings:
-        alf.store_finding_document(finding)
+        for finding in findings:
+            alf.store_finding_document(finding)
 
-    for evidence_file in evidence_files:
-        alf.store_evidence_file(specialty_name, evidence_file)
+        for evidence_file in evidence_files:
+            alf.store_evidence_file(specialty_name, evidence_file)
+    except Exception:
+        # Compensate: remove the documents this attempt created so a failed
+        # import leaves no partial inspection behind.
+        alf.rollback_batch()
+        raise
 
     return {
         "inspectionId": checklist["checklist"]["inspectionId"],
@@ -393,37 +400,43 @@ def process_followup_payload(path):
     alf = AlfrescoClient()
     followup_filenames = []
 
-    for report in reports:
-        report_data = report.get("followUpReport", {})
-        finding_id = report_data.get("findingId")
-        specialty_name = finding_id_to_specialty_name.get(finding_id)
-        if specialty_name is None:
-            raise ValueError(
-                f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
-            )
+    alf.begin_batch()
+    try:
+        for report in reports:
+            report_data = report.get("followUpReport", {})
+            finding_id = report_data.get("findingId")
+            specialty_name = finding_id_to_specialty_name.get(finding_id)
+            if specialty_name is None:
+                raise ValueError(
+                    f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
+                )
 
-        store_result = alf.store_followup_report_document(report, specialty_name)
-        if isinstance(store_result, dict):
-            stored_filename = store_result.get("storedFilename")
-            if stored_filename:
-                followup_filenames.append(stored_filename)
+            store_result = alf.store_followup_report_document(report, specialty_name)
+            if isinstance(store_result, dict):
+                stored_filename = store_result.get("storedFilename")
+                if stored_filename:
+                    followup_filenames.append(stored_filename)
 
-    uploaded_evidence = 0
+        uploaded_evidence = 0
 
-    for report in reports:
-        report_data = report.get("followUpReport", {})
-        finding_id = report_data.get("findingId")
-        specialty_name = finding_id_to_specialty_name.get(finding_id)
+        for report in reports:
+            report_data = report.get("followUpReport", {})
+            finding_id = report_data.get("findingId")
+            specialty_name = finding_id_to_specialty_name.get(finding_id)
 
-        evidence_items = report_data.get("evidenceItems") or []
-        for evidence in evidence_items:
-            evidence_source = evidence.get("source")
-            evidence_file = evidence_name_to_file.get(evidence_source)
-            if evidence_file is None:
-                continue
+            evidence_items = report_data.get("evidenceItems") or []
+            for evidence in evidence_items:
+                evidence_source = evidence.get("source")
+                evidence_file = evidence_name_to_file.get(evidence_source)
+                if evidence_file is None:
+                    continue
 
-            alf.store_followup_evidence_file(specialty_name, evidence_file)
-            uploaded_evidence += 1
+                alf.store_followup_evidence_file(specialty_name, evidence_file)
+                uploaded_evidence += 1
+    except Exception:
+        # Compensate: remove the follow-up documents this attempt created.
+        alf.rollback_batch()
+        raise
 
     return {
         "followUpReportsImported": len(reports),
