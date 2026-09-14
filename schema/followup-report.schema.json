@@ -94,7 +94,23 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": ["effectivenessConfirmed"],
+            "properties": {
+              "effectivenessConfirmed": { "const": true }
+            }
+          },
+          "then": {
+            "required": ["followUpType"],
+            "properties": {
+              "followUpType": { "const": "Closure Verification" }
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false

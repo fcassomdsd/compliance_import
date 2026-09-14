@@ -1,0 +1,255 @@
+{
+  "spec": "nomenclatura-domain-rules",
+  "version": "1.0.0",
+  "effective": "2026-09-13",
+  "sourceOfTruth": "compliance_cmis/domain-rules/nomenclatura.spec.json",
+  "appliesTo": [
+    "compliance_cmis",
+    "compliance_web",
+    "compliance_import",
+    "compliance_checklist"
+  ],
+  "notes": [
+    "This file is the single source of truth for the platform's Nomenclatura document identifiers, the severity-to-deadline baseline and the follow-up/closure vocabulary.",
+    "compliance_cmis owns the domain model, so the canonical copy lives here. Every other consumer vendors this file byte-for-byte at domain-rules/nomenclatura.spec.json; run 'node scripts/domain-rules.mjs verify' from a workspace checkout (or 'sync' to propagate a change).",
+    "Implementations must derive their rules from this file where their runtime allows it (JS/Python) or be pinned to it by a conformance test (Rhino webscripts, JSON schemas, app.config.json).",
+    "Characters: XXXX = 4-character ICAO location code, T = 1-letter activity type, YYYY = year, EE/### = specialty and sequence digits, ## = 2-digit sequence.",
+    "Activity codes are independently sequenced from their parent SiteVisit code; the compact activity code strips the 'AV-' prefix and dashes (AV-MDSD-A-0002 -> MDSDA0002)."
+  ],
+  "fragments": {
+    "icao": "[A-Z0-9]{4}",
+    "activityType": "[A-Z]",
+    "specialty": "[A-Z]{3,4}",
+    "compactActivity": "[A-Z0-9]{4}[A-Z]\\d{4}",
+    "year": "\\d{4}",
+    "sequence2": "\\d{2}",
+    "sequence3": "\\d{3}",
+    "sequence4": "\\d{4}"
+  },
+  "activityTypes": ["A", "I", "M", "D", "S"],
+  "ids": {
+    "siteVisit": {
+      "shape": "V-XXXX-YYYY-##",
+      "example": "V-MDSD-2026-01",
+      "pattern": "^V-([A-Z0-9]{4})-(\\d{4})-(\\d{2})$",
+      "parts": ["icaoCode", "year", "sequence"],
+      "bounds": {
+        "year": { "min": 1000, "max": 9999 },
+        "sequence": { "min": 1, "max": 99 }
+      }
+    },
+    "activity": {
+      "shape": "AV-XXXX-T-####",
+      "example": "AV-MDSD-A-0002",
+      "pattern": "^AV-([A-Z0-9]{4})-([A-Z])-(\\d{4})$",
+      "inputPattern": "^(?:AV-)?([A-Z0-9]{4})-([A-Z])-(\\d{4})$",
+      "parts": ["icaoCode", "activityTypeCode", "sequence"],
+      "bounds": {
+        "sequence": { "min": 1, "max": 9999 }
+      }
+    },
+    "compactActivity": {
+      "shape": "XXXXT####",
+      "example": "MDSDA0002",
+      "pattern": "^[A-Z0-9]{4}[A-Z]\\d{4}$"
+    },
+    "checklist": {
+      "shape": "LV-XXXXT####-EEE",
+      "example": "LV-MDSDA0002-COM",
+      "pattern": "^LV-([A-Z0-9]{4}[A-Z]\\d{4})-([A-Z]{3,4})$",
+      "parts": ["compactActivityCode", "specialtyCode"]
+    },
+    "finding": {
+      "shape": "H-XXXXT####-EEE-###",
+      "example": "H-MDSDA0002-COM-001",
+      "pattern": "^H-([A-Z0-9]{4}[A-Z]\\d{4})-([A-Z]{3,4})-(\\d{3})$",
+      "parts": ["compactActivityCode", "specialtyCode", "findingSequence"],
+      "bounds": {
+        "findingSequence": { "min": 1, "max": 999 }
+      }
+    },
+    "correctiveAction": {
+      "shape": "P-XXXXT####-EEE###-##",
+      "example": "P-MDSDA0002-COM001-01",
+      "pattern": "^P-([A-Z0-9]{4}[A-Z]\\d{4})-([A-Z]{3,4})(\\d{3})-(\\d{2})$",
+      "parts": ["compactActivityCode", "specialtyCode", "findingSequence", "capSequence"],
+      "bounds": {
+        "findingSequence": { "min": 1, "max": 999 },
+        "capSequence": { "min": 1, "max": 99 }
+      }
+    },
+    "followUp": {
+      "shape": "S-XXXXT####-EEE###-##",
+      "example": "S-MDSDA0002-COM001-02",
+      "pattern": "^S-([A-Z0-9]{4}[A-Z]\\d{4})-([A-Z]{3,4})(\\d{3})-(\\d{2})$",
+      "parts": ["compactActivityCode", "specialtyCode", "findingSequence", "followUpSequence"],
+      "bounds": {
+        "findingSequence": { "min": 1, "max": 999 },
+        "followUpSequence": { "min": 1, "max": 99 }
+      }
+    }
+  },
+  "severity": {
+    "authoritativeSource": "AtroCore FindingSeverity entity (daysToSubmission/daysToSolution); compliance_web queries it live",
+    "levels": [
+      { "id": "A", "daysToSolution": 7 },
+      { "id": "B", "daysToSolution": 30 },
+      { "id": "C", "daysToSolution": 90 }
+    ]
+  },
+  "followUpTypes": {
+    "canonical": [
+      "Progress Review",
+      "CAP Verification",
+      "Closure Verification",
+      "Ad-hoc Inquiry"
+    ],
+    "aliases": {
+      "Progress Verification": "Progress Review"
+    },
+    "default": "Progress Review",
+    "requiresCorrectiveAction": ["CAP Verification"]
+  },
+  "closureGate": {
+    "requiredFollowUpType": "Closure Verification",
+    "requiredEffectivenessConfirmed": true,
+    "rejectsEffectivenessConfirmedWithOtherTypes": true
+  },
+  "evidenceRoles": [
+    "Compliance Evidence",
+    "Finding Support",
+    "Progress Evidence",
+    "Closure Evidence"
+  ],
+  "conformanceVectors": {
+    "parse": [
+      {
+        "id": "siteVisit",
+        "value": "V-MDSD-2026-01",
+        "expected": { "icaoCode": "MDSD", "year": 2026, "sequence": 1 }
+      },
+      {
+        "id": "activity",
+        "value": "AV-MDSD-A-0002",
+        "expected": { "icaoCode": "MDSD", "activityTypeCode": "A", "sequence": 2 }
+      },
+      {
+        "id": "checklist",
+        "value": "LV-MDSDA0002-COM",
+        "expected": { "compactActivityCode": "MDSDA0002", "specialtyCode": "COM" }
+      },
+      {
+        "id": "finding",
+        "value": "H-MDSDA0002-COM-001",
+        "expected": {
+          "compactActivityCode": "MDSDA0002",
+          "specialtyCode": "COM",
+          "findingSequence": 1
+        }
+      },
+      {
+        "id": "correctiveAction",
+        "value": "P-MDSDA0002-COM001-01",
+        "expected": {
+          "compactActivityCode": "MDSDA0002",
+          "specialtyCode": "COM",
+          "findingSequence": 1,
+          "capSequence": 1
+        }
+      },
+      {
+        "id": "followUp",
+        "value": "S-MDSDA0002-COM001-02",
+        "expected": {
+          "compactActivityCode": "MDSDA0002",
+          "specialtyCode": "COM",
+          "findingSequence": 1,
+          "followUpSequence": 2
+        }
+      }
+    ],
+    "invalid": [
+      { "id": "siteVisit", "value": "V-MDSD-26-01" },
+      { "id": "siteVisit", "value": "V-MDSD-2026-1" },
+      { "id": "activity", "value": "AV-MDSD-AA-0002" },
+      { "id": "activity", "value": "AV-MDSD-A-2" },
+      { "id": "checklist", "value": "LV-MDSDA000-COM" },
+      { "id": "checklist", "value": "LV-MDSDA0002-COMXY" },
+      { "id": "finding", "value": "H-MDSDA0002-COM-01" },
+      { "id": "correctiveAction", "value": "P-MDSDA0002-COM001-1" },
+      { "id": "followUp", "value": "S-MDSDA0002-COM001-2" }
+    ],
+    "build": [
+      {
+        "id": "siteVisit",
+        "input": { "icaoCode": "MDSD", "year": 2026, "sequence": 1 },
+        "expected": "V-MDSD-2026-01"
+      },
+      {
+        "id": "activity",
+        "input": { "icaoCode": "MDSD", "activityTypeCode": "A", "sequence": 2 },
+        "expected": "AV-MDSD-A-0002"
+      },
+      {
+        "id": "checklist",
+        "input": { "compactActivityCode": "MDSDA0002", "specialtyCode": "COM" },
+        "expected": "LV-MDSDA0002-COM"
+      },
+      {
+        "id": "finding",
+        "input": { "compactActivityCode": "MDSDA0002", "specialtyCode": "COM", "findingSequence": 1 },
+        "expected": "H-MDSDA0002-COM-001"
+      },
+      {
+        "id": "correctiveAction",
+        "input": { "findingId": "H-MDSDA0002-COM-001", "sequence": 1 },
+        "expected": "P-MDSDA0002-COM001-01"
+      },
+      {
+        "id": "followUp",
+        "input": { "findingId": "H-MDSDA0002-COM-001", "sequence": 2 },
+        "expected": "S-MDSDA0002-COM001-02"
+      }
+    ],
+    "severity": [
+      { "severity": "A", "daysToSolution": 7, "baseDate": "2026-01-01", "resolutionDeadline": "2026-01-08" },
+      { "severity": "B", "daysToSolution": 30, "baseDate": "2026-01-01", "resolutionDeadline": "2026-01-31" },
+      { "severity": "C", "daysToSolution": 90, "baseDate": "2026-01-01", "resolutionDeadline": "2026-04-01" }
+    ],
+    "followUpTypeNormalization": [
+      { "input": "Progress Review", "expected": "Progress Review" },
+      { "input": "Progress Verification", "expected": "Progress Review" },
+      { "input": "CAP Verification", "expected": "CAP Verification" },
+      { "input": "Closure Verification", "expected": "Closure Verification" },
+      { "input": "Ad-hoc Inquiry", "expected": "Ad-hoc Inquiry" },
+      { "input": "Not a real type", "expected": "Progress Review" },
+      { "input": null, "expected": "Progress Review" }
+    ],
+    "closureGate": [
+      {
+        "followUpType": "Closure Verification",
+        "effectivenessConfirmed": true,
+        "shouldClose": true,
+        "error": false
+      },
+      {
+        "followUpType": "Progress Review",
+        "effectivenessConfirmed": true,
+        "shouldClose": false,
+        "error": true
+      },
+      {
+        "followUpType": "Closure Verification",
+        "effectivenessConfirmed": false,
+        "shouldClose": false,
+        "error": false
+      },
+      {
+        "followUpType": "Progress Review",
+        "effectivenessConfirmed": false,
+        "shouldClose": false,
+        "error": false
+      }
+    ]
+  }
+}

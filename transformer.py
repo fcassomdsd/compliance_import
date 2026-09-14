@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
+from domain_rules import SEVERITY_DAYS
 from models import (
     validate_checklist,
     validate_findings,
@@ -334,7 +335,6 @@ def process_inspection(path):
 
     findings = _enrich_findings_with_item_code(findings, checklist)
 
-    SEVERITY_DAYS = {"A": 7, "B": 30, "C": 90}
     for finding in findings:
         finding_data = finding.get("finding", {})
         severity = finding_data.get("findingSeverity")
