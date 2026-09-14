@@ -124,6 +124,70 @@ class ImportInspectionApiTests(unittest.TestCase):
             response.json(),
         )
 
+    def test_derives_finding_resolution_deadline_from_the_inspection_window(self):
+        # Findings without their own dateIssued fall back to the checklist's
+        # startDate (transformer.process_inspection). That fallback was dead
+        # code until the checklist payload started carrying the inspection
+        # window, so this pins it.
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-1",
+                "inspectionCode": INSPECTION_CODE,
+                "specialtyId": "specialty-1",
+                "specialtyCode": SPECIALTY_CODE,
+                "specialtyName": "Vigilancia",
+                "providerId": "provider-1",
+                "startDate": "2026-03-01",
+                "endDate": "2026-03-02",
+                "completionDate": "2026-03-02",
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "compliance": "Non-compliant",
+                }
+            ],
+        }
+        findings = [
+            {
+                "schemaVersion": "1.0",
+                "finding": {
+                    "findingId": FINDING_ID,
+                    "specialtyId": "specialty-1",
+                    "specialtyCode": SPECIALTY_CODE,
+                    "specialtyName": "Vigilancia",
+                    "providerId": "provider-1",
+                    "locationId": "location-1",
+                    "locationName": "Aeropuerto",
+                    "checklistItemCode": "SUR-0001",
+                    "description": "Generated finding description",
+                    "findingLevel": "Observation",
+                    "findingSeverity": "C",
+                }
+            }
+        ]
+
+        payload = self._build_zip_bytes(
+            {
+                "checklist.json": checklist,
+                "findings.json": findings,
+            }
+        )
+
+        with patch("transformer.AlfrescoClient", FakeAlfrescoClient):
+            response = self.client.post(
+                "/inspection-import",
+                files={"file": ("inspection_payload_test.zip", payload, "application/zip")},
+            )
+
+        self.assertEqual(200, response.status_code)
+
+        stored_finding = FakeAlfrescoClient.instances[-1].findings[-1]["finding"]
+        # Severity "C" allows 90 days, counted from the inspection start date.
+        self.assertEqual("2026-05-30", stored_finding["resolutionDeadline"])
+
     def test_followup_import_route_processes_followup_payload(self):
         findings = [
             {
