@@ -281,6 +281,17 @@ Use `run_dryrun.sh` to start the API, post a configured sample ZIP, print the re
 ./run_dryrun.sh
 ```
 
+## Whole-platform demo quickstart
+
+`run_dryrun.sh` proves the import service in isolation; to exercise it against a
+real stack and walk the resulting finding through closure, use §7 of the runbook
+kept in the `atrocore-docker` repository:
+`../atrocore-docker/docs/COMPLIANCE_INTEGRATION_RUNBOOK.md`
+("Demo Quickstart — clean clone to a demonstrable system"), executable as
+`atrocore-docker/scripts/demo-quickstart.sh`. It posts the same demo payloads
+(`example data/demo_inspection_payload.zip`, `example data/demo_followup_payload.zip`)
+this service ships.
+
 ## Running tests
 
 All tests:
