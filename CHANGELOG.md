@@ -19,6 +19,7 @@ All notable changes are documented in this file.
 ### Changed
 
 
+- **README points at the whole-platform demo quickstart, which lives in `atrocore-docker`.** `run_dryrun.sh` proves this service in isolation; §7 of `atrocore-docker/docs/COMPLIANCE_INTEGRATION_RUNBOOK.md` — executable as `atrocore-docker/scripts/demo-quickstart.sh`, which posts the tracked `example data/demo_inspection_payload.zip` and `example data/demo_followup_payload.zip` — exercises it against a running stack and walks the resulting finding through closure. The README now links to it. No code, schema or payload changed.
 - **BREAKING** — adopted the platform-wide Nomenclatura ID formats:
   - `inspectionCode`: `XXXX-NNN` → `XXXX-T-####` (activity-type letter, 4-digit sequence)
   - `checklistId`: `CHK-XXXXNNN-EEE` → `LV-XXXXT####-EEE`
