@@ -4,7 +4,12 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`example data/demo_inspection_payload.zip` — a payload aligned with the demo dataset.** The tracked `inspection_payload.zip` targets the pre-Nomenclatura data (`inspectionCode: MDPP-I-0001`, no activity type, SUR, real MDPP location and evidence filenames), so it shares nothing with the synthetic demo dataset in `atrocore-docker`. This ZIP is keyed to it end to end — `AV-ZZZZ-A-0001` / `demo-insp-ans-01`, specialty ATS, `demo-prov-ans`, `demo-loc-zzzz` / ICAO `ZZZZ` — with three checklist items matching the demo catalog questions (`ATS-9001…9003`), two findings (one `Non-Compliance` on the handover records, one `Observation` on the occurrence feedback loop) and three small text evidence files that say "DEMO EVIDENCE" on their first line. Both payloads validate against the repository's own `schema/*.schema.json` via `models.validate()`. Note the checklist schema has no `activityType*` field — the importer resolves the activity type from the inspection — so it is deliberately absent. `run_dryrun.sh` still points at the original `inspection_payload.zip`; this one is for the demo dataset.
+
 ### Changed
+
 
 - **BREAKING** — adopted the platform-wide Nomenclatura ID formats:
   - `inspectionCode`: `XXXX-NNN` → `XXXX-T-####` (activity-type letter, 4-digit sequence)
