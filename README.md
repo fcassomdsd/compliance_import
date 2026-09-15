@@ -350,3 +350,25 @@ field is **`followUpComment`**. Closure requires `followUpType: "Closure Verific
 together with `effectivenessConfirmed: true`, per the schema's own `if/then` rule.
 
 Verified: `{"status":"imported","followUpReportsImported":1,"followUpEvidenceImported":1}`.
+
+**Processing the follow-up (this is what moves the finding).** Importing the ZIP only writes the
+canonical follow-up document. The finding moves to `Pending Closure Approval` when the **follow-up-aware**
+canonical import processes it, and it has to be named explicitly:
+
+```bash
+curl -X POST "http://localhost:8080/alfresco/s/api/inspection/import-canonical?alf_ticket=$TICKET" \
+  -H 'Content-Type: application/json' \
+  -d '{"inspectionCode":"AV-ZZZZ-A-0001",
+       "specialtyName":"Servicio de tránsito aéreo",
+       "followUpFiles":["FollowUp H-ZZZZA0001-ATS-001 01.json"]}'
+# summary.pendingClosureApprovals: 1, finding vso:findingStatus -> "Pending Closure Approval"
+```
+
+`GET /importCanonical?inspectionId=…&specialty=…` does **not** do this: it carries no follow-up context
+(`validateImportRequest` reads `requestBody.followUpReport`, and `resolveFollowUpSourceFolder()` needs the
+hint), so it reports `processed: 0, pendingClosureApprovals: 0` and the finding stays open. The filename is
+the one the import reported in `followUpFilenames`.
+
+A valid `Closure Verification` follow-up only makes a finding **eligible** for closure — it never closes it.
+Closure is a two-step gate: the reviewer approves or rejects via `compliance_web`'s
+`PATCH /findings/:findingId/closure-review` with `{"decision":"approve"|"reject"}`.
