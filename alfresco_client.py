@@ -242,11 +242,18 @@ class AlfrescoClient:
 
 
     def _update_node_content(self, node_id, filename, payload, content_type):
+        # Alfresco's v1 update-content endpoint takes the RAW bytes with the file's
+        # own Content-Type. Sending multipart/form-data (which the create path uses,
+        # and which `files=` produces) is rejected with 415 Unsupported Media Type -
+        # so re-importing a payload that already exists failed here, while the
+        # first import succeeded. `filename` stays in the signature because callers
+        # pass it, but it is not part of this request.
 
         response = self.session.put(
             f"{self.base_url}/nodes/{node_id}/content",
             params={"majorVersion": "false"},
-            files={"filedata": (filename, payload, content_type)},
+            data=payload,
+            headers={"Content-Type": content_type},
             timeout=self.timeout_seconds,
         )
         self._check_response(response)
