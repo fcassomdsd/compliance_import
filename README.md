@@ -332,3 +332,21 @@ This project is licensed under the Apache License, Version 2.0.
   - Upstream Alfresco call failed after retry policy.
 
 If `curl` returns `Failed to open/read local data`, use an absolute path for `@/path/to/file.zip`.
+
+### Follow-up payload ZIP (`/followup-import`)
+
+`example data/demo_followup_payload.zip` is the first follow-up payload tracked in this
+repository (`run_dryrun.sh` previously noted that none existed). Its shape is not
+guessable — the importer names every entry:
+
+| Entry | Notes |
+|---|---|
+| `followup-reports.json` | **bare JSON array** of `{schemaVersion, followUpReport}` |
+| `prior-findings.json` | **required**; bare array of the source findings (`followup-source-finding.schema.json`) |
+| `FollowUpEvidence/` | evidence folder — **not** `Evidence/`, which is the inspection-import folder name |
+
+Within `followUpReport`: `comments` is rejected (`additionalProperties: false`) — the
+field is **`followUpComment`**. Closure requires `followUpType: "Closure Verification"`
+together with `effectivenessConfirmed: true`, per the schema's own `if/then` rule.
+
+Verified: `{"status":"imported","followUpReportsImported":1,"followUpEvidenceImported":1}`.
