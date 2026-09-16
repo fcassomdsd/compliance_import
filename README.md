@@ -300,11 +300,22 @@ has no date columns of its own. `checklist.json` therefore carries `startDate`/`
 a payload the inspection stays a bare record whose checklist items cannot be dated, so they drop
 out of the year-filtered provider-history report.
 
-Both demo windows are **fixed dates** while `atrocore-docker/sql/seed-demo-dataset.sql` computes
-the site visit's as `CURRENT_DATE + 21`/`+ 22`. They agree only near the day the payloads were
-written; re-seed on a different day and the visit moves while the payloads do not. That is
-cosmetic for the demo (both windows stay in the same year, which is what the report filters on),
-but a payload used as a long-lived fixture should carry dates derived from the seed instead.
+The tracked ZIPs are **templates**, not fixtures with fixed dates. Their dates are a
+self-consistent example, and the quickstart re-derives every one of them from the window it
+reads back from the seeded site visit — `atrocore-docker/sql/seed-demo-dataset.sql` computes
+that window relative to the day it runs (`CURRENT_DATE + 21`/`+ 22`), which a committed file
+cannot. `scripts/stamp-payload-window.py` writes the stamped copy (the tracked ZIP is never
+modified), and every date in the payload follows the window:
+
+| Field | Derived value |
+|---|---|
+| `checklist.startDate` / `endDate` | the seeded window's first / last day |
+| `finding.dateIssued` | shifted by the same delta as the window's last day, so a finding issued on the inspection's last day stays there |
+| `followUpReport.followUpDate` | the window's last day + 13 days (`--follow-up-lag-days`) |
+
+Importing a tracked ZIP by hand (as §7.4 of the runbook shows) therefore imports **its
+template dates**; only the quickstart stamps them. The derivation is pinned to these payloads
+by `tests/test_stamp_payload_window.py`.
 
 ## Running tests
 
