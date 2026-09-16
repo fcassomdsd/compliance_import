@@ -289,8 +289,22 @@ kept in the `atrocore-docker` repository:
 `../atrocore-docker/docs/COMPLIANCE_INTEGRATION_RUNBOOK.md`
 ("Demo Quickstart — clean clone to a demonstrable system"), executable as
 `atrocore-docker/scripts/demo-quickstart.sh`. It posts the same demo payloads
-(`example data/demo_inspection_payload.zip`, `example data/demo_followup_payload.zip`)
-this service ships.
+this service ships: `example data/demo_inspection_payload.zip` (the ATS inspection),
+`example data/demo_met_inspection_payload.zip` (the MET inspection) and
+`example data/demo_followup_payload.zip`.
+
+Two inspection payloads, because the demo dataset seeds two inspections and the inspection
+**window** only exists once canonical documents have been imported for it — the window lives on
+the Alfresco inspection folder (`vso:startDate`/`vso:endDate`), and AtroCore's `inspection` table
+has no date columns of its own. `checklist.json` therefore carries `startDate`/`endDate`; without
+a payload the inspection stays a bare record whose checklist items cannot be dated, so they drop
+out of the year-filtered provider-history report.
+
+Both demo windows are **fixed dates** while `atrocore-docker/sql/seed-demo-dataset.sql` computes
+the site visit's as `CURRENT_DATE + 21`/`+ 22`. They agree only near the day the payloads were
+written; re-seed on a different day and the visit moves while the payloads do not. That is
+cosmetic for the demo (both windows stay in the same year, which is what the report filters on),
+but a payload used as a long-lived fixture should carry dates derived from the seed instead.
 
 ## Running tests
 
