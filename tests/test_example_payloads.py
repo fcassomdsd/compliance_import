@@ -51,6 +51,29 @@ class DemoPayloadTests(unittest.TestCase):
                     if "findings.json" in names:
                         validate_findings(json.loads(archive.read("findings.json")))
 
+                    # The demo dataset carries its own USOAP citation chain (a synthetic PQ per
+                    # specialty, seeded in atrocore-docker), and the canonical import only tags
+                    # checklist items and findings with `vso:usoapPqReference` when the payload
+                    # carries the resolved reference — nothing resolves it in this service. Without
+                    # this block the demo imports untagged documents and the CE-evidence report has
+                    # nothing to report, so assert it is present and internally consistent.
+                    expected_pq = {
+                        "ATS": ("PQ 99.001", "CE-5"),
+                        "NAV": ("PQ 99.002", "CE-6"),
+                        "MET": ("PQ 99.003", "CE-2"),
+                    }
+                    for item in checklist["items"]:
+                        code = item["itemCode"]
+                        prefix = code.split("-")[0]
+                        reference = item.get("reference", {}).get("usoapPqReference")
+                        self.assertTrue(reference, f"{name}: {code} carries no usoapPqReference")
+                        self.assertEqual(
+                            expected_pq[prefix][0],
+                            reference[0]["code"],
+                            f"{name}: {code} points at a PQ other than the one its specialty resolves to",
+                        )
+                        self.assertEqual(expected_pq[prefix][1], reference[0]["criticalElement"])
+
                     for item in checklist["items"]:
                         for evidence in item.get("evidenceItems", []):
                             self.assertIn(
