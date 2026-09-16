@@ -317,6 +317,16 @@ Importing a tracked ZIP by hand (as §7.4 of the runbook shows) therefore import
 template dates**; only the quickstart stamps them. The derivation is pinned to these payloads
 by `tests/test_stamp_payload_window.py`.
 
+**Every checklist item carries its USOAP chain reference.** Each item has a
+`reference.usoapPqReference` entry — the synthetic PQ its specialty resolves to, with the ICAO
+Critical Element and area (`ATS-900x` → `PQ 99.001`/`CE-5`/`ATS`, `MET-900x` →
+`PQ 99.003`/`CE-2`/`MET`) — because nothing in this service resolves that chain: the canonical
+import writes `vso:usoapPqReference`, `vso:ceMapping`, `vso:usoapCriticalElement`,
+`vso:usoapAreaCode` and `vso:usoapTagSource = "Chain-derived"` only when the payload already
+carries the resolved reference. Without it the demo imported fully untagged documents and the
+CE-evidence report had nothing to report. `tests/test_example_payloads.py` asserts the reference
+is present and matches each item's specialty.
+
 ## Running tests
 
 All tests:
