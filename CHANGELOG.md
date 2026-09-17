@@ -4,6 +4,10 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`THIRD_PARTY_LICENSES.md`, backed by a `pip-licenses` scan of the full resolved dependency tree.** No copyleft dependencies found — every package is MIT, BSD, Apache-2.0, MPL-2.0, or PSF.
+
 
 ### Changed
 
