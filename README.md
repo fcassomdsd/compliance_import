@@ -283,6 +283,10 @@ Use `run_dryrun.sh` to start the API, post a configured sample ZIP, print the re
 
 ## Whole-platform demo quickstart
 
+First time running this platform? See the root-level
+[`GETTING_STARTED_FOR_ADOPTERS.md`](../GETTING_STARTED_FOR_ADOPTERS.md) for hardware
+requirements, timing expectations, and what the demo dataset actually is before diving in.
+
 `run_dryrun.sh` proves the import service in isolation; to exercise it against a
 real stack and walk the resulting finding through closure, use §7 of the runbook
 kept in the `atrocore-docker` repository:
