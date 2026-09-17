@@ -237,7 +237,7 @@ Core environment variables:
 
 Authentication:
 
-- `IMPORT_API_KEY` — if set, all requests must include `X-API-Key` header matching this value
+- `IMPORT_API_KEY` — if set, all requests except `GET /health` must include an `X-API-Key` header matching this value (health checks and the demo quickstart's readiness probe never send one). Set by default in `.env.docker.example` to a public placeholder value — must match `compliance_flow`'s `API_KEY` and `compliance_web`'s `NODE_RED_API_KEY`, and be rotated before any real deployment.
 - `REQUIRE_OPERATOR_IDENTITY` (default: `true`) — when on, every import must present a valid `X-Alfresco-Ticket`; the ticket identifies the operator, is recorded on the payload, and authenticates the Alfresco writes (`cm:creator`)
 
 Upload limits:

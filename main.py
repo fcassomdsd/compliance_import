@@ -40,6 +40,11 @@ async def health():
 
 @app.middleware("http")
 async def _require_api_key(request: Request, call_next):
+    # /health must stay reachable without a key: it's what compose healthchecks and the
+    # demo quickstart's readiness probe hit, and neither sends X-API-Key.
+    if request.url.path == "/health":
+        return await call_next(request)
+
     api_key = os.environ.get("IMPORT_API_KEY")
     if api_key is None:
         return await call_next(request)
