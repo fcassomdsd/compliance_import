@@ -103,12 +103,13 @@ Follow-up response:
 
 ## ID formats (Nomenclatura)
 
-All identifiers follow the platform-wide naming standard. `XXXX` is the 4-character ICAO
-location code, `T` the activity-type letter, `EEE` the specialty code, `#` a digit.
+All identifiers follow the platform-wide naming standard in
+`domain-rules/nomenclatura.spec.json`. `XXXX` is the 4-character ICAO location code, `T`
+the activity-type letter, `EEE` the specialty code, `#` a digit.
 
 | Content type | Format | Example |
 |---|---|---|
-| Actividad de vigilancia (`inspectionCode`) | `XXXX-T-####` | `MDPP-I-0001` |
+| Actividad de vigilancia (`inspectionCode`) | `AV-XXXX-T-####` | `AV-MDPP-I-0001` |
 | Lista de verificación (`checklistId`) | `LV-XXXXT####-EEE` | `LV-MDPPI0001-SUR` |
 | Hallazgo (`findingId`) | `H-XXXXT####-EEE-###` | `H-MDPPI0001-SUR-001` |
 | Plan de acciones correctivas (`capId`) | `P-XXXXT####-EEE###-##` | `P-MDPPI0001-SUR001-01` |
@@ -116,8 +117,12 @@ location code, `T` the activity-type letter, `EEE` the specialty code, `#` a dig
 
 Notes:
 
-- `XXXXT####` is the activity code with dashes stripped (`MDPP-I-0001` → `MDPPI0001`).
-  The activity code is independent of any site-visit code.
+- `inspectionCode` is canonically `AV-XXXX-T-####`; the importer's input validation also
+  accepts the bare `XXXX-T-####` form (`AV-` optional), mirroring the shared spec's
+  `inputPattern`. Emit the prefixed form.
+- `XXXXT####` is the compact activity code: the `AV-` prefix and the dashes are stripped
+  (`AV-MDPP-I-0001` → `MDPPI0001`). The activity code is independently sequenced from any
+  site-visit code.
 - Activity types: `A` Auditoría, `I` Inspección, `M` Monitoreo, `D` Revisión documental,
   `S` Análisis de suceso.
 - Specialty codes are 3–4 uppercase letters: `APR, AVIS, FAU, PAV, SSEI, AIM, ATS, COM,
