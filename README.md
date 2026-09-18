@@ -1,5 +1,7 @@
 # Compliance Import Service
 
+[![CI](https://github.com/fcassomdsd/compliance_import/actions/workflows/ci.yml/badge.svg)](https://github.com/fcassomdsd/compliance_import/actions/workflows/ci.yml)
+
 FastAPI service that imports inspection and follow-up payloads from ZIP files, validates JSON content against schemas, enriches records, and stores canonical documents in Alfresco.
 
 ## What this service does
