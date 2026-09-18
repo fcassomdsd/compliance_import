@@ -6,13 +6,14 @@ import zipfile
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from id_utils import build_corrective_action_id, build_finding_id
 
 from main import app
 
-TEST_INSPECTION_CODE = "TEST-999"
+TEST_INSPECTION_CODE = "TEST-A-0999"
 TEST_SPECIALTY_CODE = "TST"
-TEST_FINDING_ID = f"{TEST_INSPECTION_CODE.replace('-', '')}-{TEST_SPECIALTY_CODE}-01"
-TEST_CAP_ID = f"CA-{TEST_INSPECTION_CODE.replace('-', '')}{TEST_SPECIALTY_CODE}-01-01"
+TEST_FINDING_ID = build_finding_id(TEST_INSPECTION_CODE, TEST_SPECIALTY_CODE, 1)
+TEST_CAP_ID = build_corrective_action_id(TEST_FINDING_ID, 1)
 
 
 def _alfresco_test_url():

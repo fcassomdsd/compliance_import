@@ -9,6 +9,7 @@ FastAPI service that imports inspection and follow-up payloads from ZIP files, v
   - `POST /inspection-import`
   - `POST /followup-import`
 - Supports optional API key authentication via `X-API-Key` header (configured with `IMPORT_API_KEY`).
+- Requires an operator Alfresco ticket (`X-Alfresco-Ticket`) by default, verifies it against the Alfresco authentication API, and records the resulting identity (`enteredBy`, `enteredAt`, `enteredVia`) on every imported payload. The ticket is also used for the Alfresco writes, so the stored documents carry the inspector as `cm:creator`.
 - Validates incoming JSON using the schemas in `schema/`.
 - Performs domain transformations (for example, finding enrichment from checklist data).
 - Protects against ZIP bombs and enforces upload size limits.
@@ -23,6 +24,9 @@ FastAPI service that imports inspection and follow-up payloads from ZIP files, v
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# To run the test suite, install the dev extras as well (adds httpx).
+pip install -r requirements-dev.txt
 ```
 
 Note: This repository may already include `.venv/` in some developer setups. The scripts use `venv/` by default.
@@ -56,23 +60,16 @@ http://127.0.0.1:8000/docs
 
 ### 4. Upload a ZIP payload
 
-If `IMPORT_API_KEY` is configured, include the `X-API-Key` header:
+Every import must carry the operator's Alfresco ticket, and (when configured) the service API key:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/inspection-import" \
   -H "X-API-Key: your-api-key" \
+  -H "X-Alfresco-Ticket: TICKET_..." \
   -F "file=@/absolute/path/to/inspection_payload.zip"
 ```
 
-Without API key configured (development mode):
-
-```bash
-curl -X POST "http://127.0.0.1:8000/inspection-import" \
-  -F "file=@/absolute/path/to/inspection_payload.zip"
-
-curl -X POST "http://127.0.0.1:8000/followup-import" \
-  -F "file=@/absolute/path/to/followup_payload.zip"
-```
+The ticket is verified with `GET /people/-me-`; a missing ticket is rejected with 401 while `REQUIRE_OPERATOR_IDENTITY` is on, and an invalid or expired ticket is always rejected. The verified identity is stamped onto the payload (`enteredBy`/`enteredByDisplayName`/`enteredAt`/`enteredVia`) before it is stored. Set `REQUIRE_OPERATOR_IDENTITY=false` only for local or automated runs that write as the service account (`enteredVia: "service"`).
 
 ## API responses
 
@@ -95,12 +92,38 @@ Follow-up response:
   "followUpReportsImported": 1,
   "followUpEvidenceImported": 1,
   "followUpFilenames": [
-    "FollowUp MDPP001-VIG-01 01.json"
+    "FollowUp H-MDPPI0001-SUR-001 01.json"
   ]
 }
 ```
 
 `followUpFilenames` helps clients reference the exact JSON documents created in Alfresco.
+
+## ID formats (Nomenclatura)
+
+All identifiers follow the platform-wide naming standard. `XXXX` is the 4-character ICAO
+location code, `T` the activity-type letter, `EEE` the specialty code, `#` a digit.
+
+| Content type | Format | Example |
+|---|---|---|
+| Actividad de vigilancia (`inspectionCode`) | `XXXX-T-####` | `MDPP-I-0001` |
+| Lista de verificación (`checklistId`) | `LV-XXXXT####-EEE` | `LV-MDPPI0001-SUR` |
+| Hallazgo (`findingId`) | `H-XXXXT####-EEE-###` | `H-MDPPI0001-SUR-001` |
+| Plan de acciones correctivas (`capId`) | `P-XXXXT####-EEE###-##` | `P-MDPPI0001-SUR001-01` |
+| Seguimiento (`followUpId`) | `S-XXXXT####-EEE###-##` | `S-MDPPI0001-SUR001-01` |
+
+Notes:
+
+- `XXXXT####` is the activity code with dashes stripped (`MDPP-I-0001` → `MDPPI0001`).
+  The activity code is independent of any site-visit code.
+- Activity types: `A` Auditoría, `I` Inspección, `M` Monitoreo, `D` Revisión documental,
+  `S` Análisis de suceso.
+- Specialty codes are 3–4 uppercase letters: `APR, AVIS, FAU, PAV, SSEI, AIM, ATS, COM,
+  ECNS, EMET, FIS, MET, NAV, SAR, SUR, DPR`.
+- Finding sequences are 3 digits and **1-based** (`001` is the first finding); CAP and
+  follow-up sequences are 2 digits and 1-based (`01` is the first).
+- Alfresco document names embed the canonical ID: `Checklist <checklistId>.json`,
+  `Finding <findingId>.json`, `FollowUp <findingId> <NN>.json`.
 
 ## Payload contracts
 
@@ -124,6 +147,13 @@ Behavior notes:
 - Each finding must map to a checklist item via `finding.checklistItemCode`.
 - `finding.requirementBreached` is auto-populated from checklist item text fields.
 - Missing finding metadata may be backfilled from checklist metadata (`specialty*`, `providerId`, `location*`).
+- `checklist.startDate` / `checklist.endDate` are the inspection window recorded in the field
+  (`checklist.completionDate` is kept for compatibility and normally equals `endDate`). The
+  checklist app exports all three; Alfresco stores the window on the inspection folder, which is
+  what dates the checklist items filed under it — checklist items have no date property of their
+  own. See the `compliance_checklist` and `compliance_cmis` repositories for the consuming side.
+- A finding without its own `dateIssued` falls back to `checklist.startDate` when computing its
+  `resolutionDeadline` (severity `A`/`B`/`C` allow 7/30/90 days).
 
 ### Follow-up import (`POST /followup-import`)
 
@@ -141,10 +171,14 @@ Behavior notes:
 
 - Each follow-up report is matched to a source finding by `findingId`.
 - `capId` consistency is enforced:
-  - if source finding has `correctiveAction.capId` and report omits `capId`, it is backfilled
+  - if source finding has `correctiveAction.capId` (format `P-XXXXT####-EEE###-##`) and the
+    report omits `capId`, it is backfilled
   - if both exist and differ, import fails
 - Follow-up JSON filenames use sequence-based naming:
-  - `FollowUp <findingId> <NN>.json` (for example `FollowUp MDPP001-VIG-01 01.json`)
+  - `FollowUp <findingId> <NN>.json` (for example `FollowUp H-MDPPI0001-SUR-001 01.json`)
+  - the sequence is 1-based; the first follow-up for a finding is `01`
+  - the stored `followUpId` is regenerated from that sequence as `S-XXXXT####-EEE###-##`,
+    overwriting any temporary ID supplied in the payload
 
 ## Sample ZIP layouts
 
@@ -203,7 +237,8 @@ Core environment variables:
 
 Authentication:
 
-- `IMPORT_API_KEY` — if set, all requests must include `X-API-Key` header matching this value
+- `IMPORT_API_KEY` — if set, all requests except `GET /health` must include an `X-API-Key` header matching this value (health checks and the demo quickstart's readiness probe never send one). Set by default in `.env.docker.example` to a public placeholder value — must match `compliance_flow`'s `API_KEY` and `compliance_web`'s `NODE_RED_API_KEY`, and be rotated before any real deployment.
+- `REQUIRE_OPERATOR_IDENTITY` (default: `true`) — when on, every import must present a valid `X-Alfresco-Ticket`; the ticket identifies the operator, is recorded on the payload, and authenticates the Alfresco writes (`cm:creator`)
 
 Upload limits:
 
@@ -245,6 +280,56 @@ Use `run_dryrun.sh` to start the API, post a configured sample ZIP, print the re
 ```bash
 ./run_dryrun.sh
 ```
+
+## Whole-platform demo quickstart
+
+First time running this platform? See the root-level
+[`GETTING_STARTED_FOR_ADOPTERS.md`](../GETTING_STARTED_FOR_ADOPTERS.md) for hardware
+requirements, timing expectations, and what the demo dataset actually is before diving in.
+
+`run_dryrun.sh` proves the import service in isolation; to exercise it against a
+real stack and walk the resulting finding through closure, use §7 of the runbook
+kept in the `atrocore-docker` repository:
+`../atrocore-docker/docs/COMPLIANCE_INTEGRATION_RUNBOOK.md`
+("Demo Quickstart — clean clone to a demonstrable system"), executable as
+`atrocore-docker/scripts/demo-quickstart.sh`. It posts the same demo payloads
+this service ships: `example data/demo_inspection_payload.zip` (the ATS inspection),
+`example data/demo_met_inspection_payload.zip` (the MET inspection) and
+`example data/demo_followup_payload.zip`.
+
+Two inspection payloads, because the demo dataset seeds two inspections and the inspection
+**window** only exists once canonical documents have been imported for it — the window lives on
+the Alfresco inspection folder (`vso:startDate`/`vso:endDate`), and AtroCore's `inspection` table
+has no date columns of its own. `checklist.json` therefore carries `startDate`/`endDate`; without
+a payload the inspection stays a bare record whose checklist items cannot be dated, so they drop
+out of the year-filtered provider-history report.
+
+The tracked ZIPs are **templates**, not fixtures with fixed dates. Their dates are a
+self-consistent example, and the quickstart re-derives every one of them from the window it
+reads back from the seeded site visit — `atrocore-docker/sql/seed-demo-dataset.sql` computes
+that window relative to the day it runs (`CURRENT_DATE + 21`/`+ 22`), which a committed file
+cannot. `scripts/stamp-payload-window.py` writes the stamped copy (the tracked ZIP is never
+modified), and every date in the payload follows the window:
+
+| Field | Derived value |
+|---|---|
+| `checklist.startDate` / `endDate` | the seeded window's first / last day |
+| `finding.dateIssued` | shifted by the same delta as the window's last day, so a finding issued on the inspection's last day stays there |
+| `followUpReport.followUpDate` | the window's last day + 13 days (`--follow-up-lag-days`) |
+
+Importing a tracked ZIP by hand (as §7.4 of the runbook shows) therefore imports **its
+template dates**; only the quickstart stamps them. The derivation is pinned to these payloads
+by `tests/test_stamp_payload_window.py`.
+
+**Every checklist item carries its USOAP chain reference.** Each item has a
+`reference.usoapPqReference` entry — the synthetic PQ its specialty resolves to, with the ICAO
+Critical Element and area (`ATS-900x` → `PQ 99.001`/`CE-5`/`ATS`, `MET-900x` →
+`PQ 99.003`/`CE-2`/`MET`) — because nothing in this service resolves that chain: the canonical
+import writes `vso:usoapPqReference`, `vso:ceMapping`, `vso:usoapCriticalElement`,
+`vso:usoapAreaCode` and `vso:usoapTagSource = "Chain-derived"` only when the payload already
+carries the resolved reference. Without it the demo imported fully untagged documents and the
+CE-evidence report had nothing to report. `tests/test_example_payloads.py` asserts the reference
+is present and matches each item's specialty.
 
 ## Running tests
 
@@ -297,3 +382,43 @@ This project is licensed under the Apache License, Version 2.0.
   - Upstream Alfresco call failed after retry policy.
 
 If `curl` returns `Failed to open/read local data`, use an absolute path for `@/path/to/file.zip`.
+
+### Follow-up payload ZIP (`/followup-import`)
+
+`example data/demo_followup_payload.zip` is the first follow-up payload tracked in this
+repository (`run_dryrun.sh` previously noted that none existed). Its shape is not
+guessable — the importer names every entry:
+
+| Entry | Notes |
+|---|---|
+| `followup-reports.json` | **bare JSON array** of `{schemaVersion, followUpReport}` |
+| `prior-findings.json` | **required**; bare array of the source findings (`followup-source-finding.schema.json`) |
+| `FollowUpEvidence/` | evidence folder — **not** `Evidence/`, which is the inspection-import folder name |
+
+Within `followUpReport`: `comments` is rejected (`additionalProperties: false`) — the
+field is **`followUpComment`**. Closure requires `followUpType: "Closure Verification"`
+together with `effectivenessConfirmed: true`, per the schema's own `if/then` rule.
+
+Verified: `{"status":"imported","followUpReportsImported":1,"followUpEvidenceImported":1}`.
+
+**Processing the follow-up (this is what moves the finding).** Importing the ZIP only writes the
+canonical follow-up document. The finding moves to `Pending Closure Approval` when the **follow-up-aware**
+canonical import processes it, and it has to be named explicitly:
+
+```bash
+curl -X POST "http://localhost:8080/alfresco/s/api/inspection/import-canonical?alf_ticket=$TICKET" \
+  -H 'Content-Type: application/json' \
+  -d '{"inspectionCode":"AV-ZZZZ-A-0001",
+       "specialtyName":"Servicio de tránsito aéreo",
+       "followUpFiles":["FollowUp H-ZZZZA0001-ATS-001 01.json"]}'
+# summary.pendingClosureApprovals: 1, finding vso:findingStatus -> "Pending Closure Approval"
+```
+
+`GET /importCanonical?inspectionId=…&specialty=…` does **not** do this: it carries no follow-up context
+(`validateImportRequest` reads `requestBody.followUpReport`, and `resolveFollowUpSourceFolder()` needs the
+hint), so it reports `processed: 0, pendingClosureApprovals: 0` and the finding stays open. The filename is
+the one the import reported in `followUpFilenames`.
+
+A valid `Closure Verification` follow-up only makes a finding **eligible** for closure — it never closes it.
+Closure is a two-step gate: the reviewer approves or rejects via `compliance_web`'s
+`PATCH /findings/:findingId/closure-review` with `{"decision":"approve"|"reject"}`.

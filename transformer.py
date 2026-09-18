@@ -1,14 +1,41 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from alfresco_client import AlfrescoClient
+from domain_rules import SEVERITY_DAYS
 from models import (
     validate_checklist,
     validate_findings,
     validate_followup_reports,
     validate_followup_source_findings,
 )
+
+
+def _entered_at_now():
+    """Server-side UTC timestamp; the authoritative entry time."""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _apply_operator_attribution(section, operator, entered_at):
+    """Stamp the verified operator onto a canonical payload section.
+
+    ``section`` is the ``checklist`` / ``finding`` / ``followUpReport`` object
+    that compliance_cmis later reads. ``enteredBy`` is authoritative (resolved
+    from the Alfresco ticket by main.py); the app's pre-verification
+    ``declaredBy``/``inspectorId`` are left as received for mismatch auditing.
+    """
+    if not isinstance(section, dict):
+        return
+
+    section["enteredAt"] = entered_at
+
+    if operator:
+        section["enteredBy"] = operator.get("userName")
+        section["enteredByDisplayName"] = operator.get("displayName")
+        section["enteredVia"] = "operator-login"
+    else:
+        section["enteredVia"] = "service"
 
 
 def _find_file(root_path, filename):
@@ -314,7 +341,7 @@ def _validate_followup_evidence_sources(reports, evidence_files):
     return evidence_name_to_file
 
 
-def process_inspection(path):
+def process_inspection(path, operator=None):
 
     checklist_path = _find_file(path, "checklist.json")
 
@@ -334,7 +361,6 @@ def process_inspection(path):
 
     findings = _enrich_findings_with_item_code(findings, checklist)
 
-    SEVERITY_DAYS = {"A": 7, "B": 30, "C": 90}
     for finding in findings:
         finding_data = finding.get("finding", {})
         severity = finding_data.get("findingSeverity")
@@ -352,16 +378,28 @@ def process_inspection(path):
         except (ValueError, TypeError):
             pass
 
-    alf = AlfrescoClient()
+    entered_at = _entered_at_now()
+    _apply_operator_attribution(checklist.get("checklist"), operator, entered_at)
+    for finding in findings:
+        _apply_operator_attribution(finding.get("finding"), operator, entered_at)
+
+    alf = AlfrescoClient(ticket=(operator or {}).get("ticket"))
     specialty_name = checklist["checklist"]["specialtyName"]
 
-    alf.store_checklist_document(checklist)
+    alf.begin_batch()
+    try:
+        alf.store_checklist_document(checklist)
 
-    for finding in findings:
-        alf.store_finding_document(finding)
+        for finding in findings:
+            alf.store_finding_document(finding)
 
-    for evidence_file in evidence_files:
-        alf.store_evidence_file(specialty_name, evidence_file)
+        for evidence_file in evidence_files:
+            alf.store_evidence_file(specialty_name, evidence_file)
+    except Exception:
+        # Compensate: remove the documents this attempt created so a failed
+        # import leaves no partial inspection behind.
+        alf.rollback_batch()
+        raise
 
     return {
         "inspectionId": checklist["checklist"]["inspectionId"],
@@ -370,7 +408,7 @@ def process_inspection(path):
     }
 
 
-def process_followup_payload(path):
+def process_followup_payload(path, operator=None):
 
     source_findings = _load_followup_source_findings(path)
     followup_reports = _load_followup_reports(path)
@@ -390,40 +428,50 @@ def process_followup_payload(path):
         if finding_id and specialty_name:
             finding_id_to_specialty_name[finding_id] = specialty_name
 
-    alf = AlfrescoClient()
+    entered_at = _entered_at_now()
+    for report in reports:
+        _apply_operator_attribution(report.get("followUpReport"), operator, entered_at)
+
+    alf = AlfrescoClient(ticket=(operator or {}).get("ticket"))
     followup_filenames = []
 
-    for report in reports:
-        report_data = report.get("followUpReport", {})
-        finding_id = report_data.get("findingId")
-        specialty_name = finding_id_to_specialty_name.get(finding_id)
-        if specialty_name is None:
-            raise ValueError(
-                f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
-            )
+    alf.begin_batch()
+    try:
+        for report in reports:
+            report_data = report.get("followUpReport", {})
+            finding_id = report_data.get("findingId")
+            specialty_name = finding_id_to_specialty_name.get(finding_id)
+            if specialty_name is None:
+                raise ValueError(
+                    f"Could not map follow-up report findingId '{finding_id}' to a specialtyName"
+                )
 
-        store_result = alf.store_followup_report_document(report, specialty_name)
-        if isinstance(store_result, dict):
-            stored_filename = store_result.get("storedFilename")
-            if stored_filename:
-                followup_filenames.append(stored_filename)
+            store_result = alf.store_followup_report_document(report, specialty_name)
+            if isinstance(store_result, dict):
+                stored_filename = store_result.get("storedFilename")
+                if stored_filename:
+                    followup_filenames.append(stored_filename)
 
-    uploaded_evidence = 0
+        uploaded_evidence = 0
 
-    for report in reports:
-        report_data = report.get("followUpReport", {})
-        finding_id = report_data.get("findingId")
-        specialty_name = finding_id_to_specialty_name.get(finding_id)
+        for report in reports:
+            report_data = report.get("followUpReport", {})
+            finding_id = report_data.get("findingId")
+            specialty_name = finding_id_to_specialty_name.get(finding_id)
 
-        evidence_items = report_data.get("evidenceItems") or []
-        for evidence in evidence_items:
-            evidence_source = evidence.get("source")
-            evidence_file = evidence_name_to_file.get(evidence_source)
-            if evidence_file is None:
-                continue
+            evidence_items = report_data.get("evidenceItems") or []
+            for evidence in evidence_items:
+                evidence_source = evidence.get("source")
+                evidence_file = evidence_name_to_file.get(evidence_source)
+                if evidence_file is None:
+                    continue
 
-            alf.store_followup_evidence_file(specialty_name, evidence_file)
-            uploaded_evidence += 1
+                alf.store_followup_evidence_file(specialty_name, evidence_file)
+                uploaded_evidence += 1
+    except Exception:
+        # Compensate: remove the follow-up documents this attempt created.
+        alf.rollback_batch()
+        raise
 
     return {
         "followUpReportsImported": len(reports),

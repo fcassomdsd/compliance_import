@@ -7,6 +7,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from jsonschema.exceptions import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,8 +15,17 @@ logging.basicConfig(
 )
 
 from transformer import process_followup_payload, process_inspection
+from alfresco_client import OperatorIdentityError, resolve_ticket_identity
 
 app = FastAPI(title="Inspection Import Service")
+
+# Strict by default: an import without a verified operator identity is rejected,
+# so every canonical payload carries an authenticated inspector.
+REQUIRE_OPERATOR_IDENTITY = os.getenv("REQUIRE_OPERATOR_IDENTITY", "true").strip().lower() not in (
+    "false",
+    "0",
+    "no",
+)
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(400 * 1024 * 1024)))
 MAX_EXTRACTED_TOTAL_SIZE = int(os.getenv("MAX_EXTRACTED_TOTAL_SIZE", str(500 * 1024 * 1024)))
@@ -30,6 +40,11 @@ async def health():
 
 @app.middleware("http")
 async def _require_api_key(request: Request, call_next):
+    # /health must stay reachable without a key: it's what compose healthchecks and the
+    # demo quickstart's readiness probe hit, and neither sends X-API-Key.
+    if request.url.path == "/health":
+        return await call_next(request)
+
     api_key = os.environ.get("IMPORT_API_KEY")
     if api_key is None:
         return await call_next(request)
@@ -81,23 +96,84 @@ def _safe_extract(zip_ref, destination_dir):
     zip_ref.extractall(destination)
 
 
-async def _process_uploaded_zip(file, processor):
+UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+
+
+async def _stream_upload_to_disk(file, destination, max_bytes):
+    """Stream an upload to disk in chunks, enforcing a hard byte cap.
+
+    The cap is checked as bytes arrive, so an oversized payload is rejected
+    without ever being buffered whole in memory.
+    """
+    written = 0
+    with open(destination, "wb") as out:
+        while True:
+            chunk = await file.read(UPLOAD_CHUNK_SIZE_BYTES)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Upload exceeds maximum size of {max_bytes} bytes",
+                )
+            out.write(chunk)
+
+    if written == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    return written
+
+
+def _extract_and_process(zip_path, destination_dir, processor, operator):
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        _safe_extract(zip_ref, destination_dir)
+
+    return processor(destination_dir, operator)
+
+
+async def _process_uploaded_zip(file, processor, operator):
     with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = f"{tmpdir}/inspection.zip"
+        zip_path = os.path.join(tmpdir, "inspection.zip")
 
-        with open(zip_path, "wb") as f:
-            f.write(await file.read())
+        await _stream_upload_to_disk(file, zip_path, MAX_UPLOAD_SIZE_BYTES)
 
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            _safe_extract(zip_ref, tmpdir)
+        # Extraction and the synchronous Alfresco client both block, so run them
+        # in a worker thread: one slow import must not stall the event loop.
+        return await run_in_threadpool(_extract_and_process, zip_path, tmpdir, processor, operator)
 
-        return processor(tmpdir)
+
+def _resolve_operator(request: Request):
+    """Resolve the operator ticket to a verified identity.
+
+    Blocking (it calls Alfresco), so callers run it in the threadpool. Missing
+    tickets are rejected when REQUIRE_OPERATOR_IDENTITY is on; an invalid or
+    expired ticket is always rejected.
+    """
+    ticket = (request.headers.get("X-Alfresco-Ticket") or "").strip()
+
+    if not ticket:
+        if REQUIRE_OPERATOR_IDENTITY:
+            raise HTTPException(
+                status_code=401,
+                detail="X-Alfresco-Ticket header is required",
+            )
+        return None
+
+    try:
+        identity = resolve_ticket_identity(ticket)
+    except OperatorIdentityError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    identity["ticket"] = ticket
+    return identity
 
 
 @app.post("/inspection-import")
-async def import_inspection(file: UploadFile = File(...)):
+async def import_inspection(request: Request, file: UploadFile = File(...)):
+    operator = await run_in_threadpool(_resolve_operator, request)
     try:
-        result = await _process_uploaded_zip(file, process_inspection)
+        result = await _process_uploaded_zip(file, process_inspection, operator)
     except zipfile.BadZipFile as exc:
         raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP") from exc
     except FileNotFoundError as exc:
@@ -118,9 +194,10 @@ async def import_inspection(file: UploadFile = File(...)):
 
 
 @app.post("/followup-import")
-async def import_followup(file: UploadFile = File(...)):
+async def import_followup(request: Request, file: UploadFile = File(...)):
+    operator = await run_in_threadpool(_resolve_operator, request)
     try:
-        result = await _process_uploaded_zip(file, process_followup_payload)
+        result = await _process_uploaded_zip(file, process_followup_payload, operator)
     except zipfile.BadZipFile as exc:
         raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP") from exc
     except FileNotFoundError as exc:

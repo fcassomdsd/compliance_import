@@ -1,5 +1,7 @@
 import unittest
 
+from jsonschema.exceptions import ValidationError
+
 from models import validate_checklist
 
 
@@ -10,18 +12,18 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-001",
+                "inspectionCode": "MDPP-I-0001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
                 "locationName": "Aeropuerto Internacional Gregorio Luperon",
                 "locationCode": "MDPP",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
             },
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "compliance": "Compliant",
                 }
             ],
@@ -29,21 +31,77 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
 
         validate_checklist(checklist)
 
+    def test_accepts_inspection_window_dates(self):
+        # The checklist app exports the field-recorded inspection window so
+        # Alfresco can date the inspection folder, which in turn dates every
+        # checklist item (items carry no date of their own). completionDate is
+        # kept for compatibility.
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-1",
+                "inspectionCode": "MDPP-I-0001",
+                "specialtyId": "specialty-1",
+                "providerId": "provider-1",
+                "specialtyCode": "SUR",
+                "specialtyName": "Vigilancia",
+                "startDate": "2025-03-26",
+                "endDate": "2025-03-27",
+                "completionDate": "2025-03-27",
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "compliance": "Compliant",
+                }
+            ],
+        }
+
+        validate_checklist(checklist)
+
+    def test_rejects_a_non_string_inspection_window_date(self):
+        # NOTE: "format": "date" is declarative here - models._load_schemas()
+        # validates without a FormatChecker, so only the declared type is
+        # enforced. This test pins the type, not the ISO shape.
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-1",
+                "inspectionCode": "MDPP-I-0001",
+                "specialtyId": "specialty-1",
+                "providerId": "provider-1",
+                "specialtyCode": "SUR",
+                "specialtyName": "Vigilancia",
+                "startDate": 20250326,
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "compliance": "Compliant",
+                }
+            ],
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_checklist(checklist)
+
     def test_accepts_new_item_field_names(self):
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
                 "inspectionId": "inspection-1",
-                "inspectionCode": "MDPP-001",
+                "inspectionCode": "MDPP-I-0001",
                 "specialtyId": "specialty-1",
                 "providerId": "provider-1",
-                "specialtyCode": "VIG",
+                "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
             },
             "items": [
                 {
                     "itemId": "item-1",
-                    "itemCode": "VIG-0001",
+                    "itemCode": "SUR-0001",
                     "requirementText": "Pregunta",
                     "itemVerificationMethod": "Verificar documentos",
                     "inspectorComment": "Comentario",

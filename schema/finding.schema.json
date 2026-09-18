@@ -14,13 +14,13 @@
         "contentType": { "type": "string" },
         "findingId": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{4}\\d{3}-[A-Z0-9]{3,6}-\\d{2}$"
+          "pattern": "^H-[A-Z0-9]{4}[A-Z]\\d{4}-[A-Z]{3,4}-\\d{3}$"
         },
         "inspectionId": { "type": "string" },
         "specialtyId": { "type": "string" },
         "specialtyCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{3,6}$"
+          "pattern": "^[A-Z]{3,4}$"
         },
         "specialtyName": { "type": "string" },
         "providerId": { "type": "string" },
@@ -30,7 +30,7 @@
         "locationCode": { "type": "string" },
         "checklistItemCode": {
           "type": "string",
-          "pattern": "^[A-Z0-9]{3,6}-\\d{4}$"
+          "pattern": "^[A-Z]{3,4}-\\d{4}$"
         },
         "icaoReference": { "type": "string" },
         "nationalRegulation": { "type": "string" },
@@ -85,7 +85,13 @@
         "achievedResidualRisk": {
           "type": "string",
           "enum": ["Low", "Medium", "High", "Critical"]
-        }
+        },
+        "enteredBy": { "type": "string" },
+        "enteredByDisplayName": { "type": "string" },
+        "enteredAt": { "type": "string" },
+        "enteredVia": { "type": "string", "enum": ["operator-login", "service"] },
+        "inspectorId": { "type": "string" },
+        "declaredBy": { "type": "string" }
       }
     }
   }

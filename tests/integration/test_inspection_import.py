@@ -6,10 +6,11 @@ import zipfile
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from id_utils import build_finding_id
 
 from main import app
 
-TEST_INSPECTION_CODE = "TEST-999"
+TEST_INSPECTION_CODE = "TEST-A-0999"
 TEST_SPECIALTY_CODE = "TST"
 
 
@@ -79,7 +80,7 @@ class InspectionImportIntegrationTests(unittest.TestCase):
             {
                 "schemaVersion": "1.0",
                 "finding": {
-                    "findingId": f"{TEST_INSPECTION_CODE.replace('-', '')}-{TEST_SPECIALTY_CODE}-01",
+                    "findingId": build_finding_id(TEST_INSPECTION_CODE, TEST_SPECIALTY_CODE, 1),
                     "specialtyId": "TEST-SPEC",
                     "specialtyCode": TEST_SPECIALTY_CODE,
                     "specialtyName": "Integration Test Specialty",

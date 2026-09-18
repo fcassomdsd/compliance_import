@@ -2,13 +2,23 @@ class FakeAlfrescoClient:
 
     instances = []
 
-    def __init__(self):
+    def __init__(self, ticket=None):
+        self.ticket = ticket
         self.checklists = []
         self.findings = []
         self.evidence = []
         self.followup_reports = []
         self.followup_evidence = []
+        self.batch_active = False
+        self.rollback_count = 0
         FakeAlfrescoClient.instances.append(self)
+
+    def begin_batch(self):
+        self.batch_active = True
+
+    def rollback_batch(self):
+        self.rollback_count += 1
+        self.batch_active = False
 
     def store_checklist_document(self, checklist):
         self.checklists.append(checklist)
