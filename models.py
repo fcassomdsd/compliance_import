@@ -1,10 +1,15 @@
 import json
 from pathlib import Path
 
-from jsonschema import validate
+from jsonschema import FormatChecker, validate
 
 
 SCHEMA_DIR = Path(__file__).resolve().parent / "schema"
+
+# jsonschema does not enforce a schema's "format" keywords (date/date-time) unless a
+# format checker is passed explicitly. Without this, a payload carrying e.g.
+# startDate "NOT-A-DATE" validates clean and reaches Alfresco as a malformed date.
+_format_checker = FormatChecker()
 
 _schemas = None
 
@@ -38,11 +43,11 @@ def _load_schemas():
 
 
 def validate_checklist(data):
-    validate(instance=data, schema=_load_schemas()["checklist"])
+    validate(instance=data, schema=_load_schemas()["checklist"], format_checker=_format_checker)
 
 
 def validate_finding(data):
-    validate(instance=data, schema=_load_schemas()["finding"])
+    validate(instance=data, schema=_load_schemas()["finding"], format_checker=_format_checker)
 
 
 def validate_findings(data):
@@ -58,7 +63,7 @@ def validate_followup_reports(data):
         raise ValueError("followup-reports.json must be an array")
 
     for report in data:
-        validate(instance=report, schema=_load_schemas()["followup_report"])
+        validate(instance=report, schema=_load_schemas()["followup_report"], format_checker=_format_checker)
 
 
 def validate_followup_source_findings(data):
@@ -67,7 +72,7 @@ def validate_followup_source_findings(data):
 
     for finding in data:
         if isinstance(finding, dict) and isinstance(finding.get("finding"), dict):
-            validate(instance=finding["finding"], schema=_load_schemas()["followup_source_finding"])
+            validate(instance=finding["finding"], schema=_load_schemas()["followup_source_finding"], format_checker=_format_checker)
             continue
 
-        validate(instance=finding, schema=_load_schemas()["followup_source_finding"])
+        validate(instance=finding, schema=_load_schemas()["followup_source_finding"], format_checker=_format_checker)

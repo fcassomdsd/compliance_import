@@ -61,9 +61,8 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
         validate_checklist(checklist)
 
     def test_rejects_a_non_string_inspection_window_date(self):
-        # NOTE: "format": "date" is declarative here - models._load_schemas()
-        # validates without a FormatChecker, so only the declared type is
-        # enforced. This test pins the type, not the ISO shape.
+        # "format": "date" is enforced by models._format_checker; a non-string is
+        # rejected by the declared type before the format check applies.
         checklist = {
             "schemaVersion": "1.0",
             "checklist": {
@@ -74,6 +73,32 @@ class ChecklistSchemaFieldsTests(unittest.TestCase):
                 "specialtyCode": "SUR",
                 "specialtyName": "Vigilancia",
                 "startDate": 20250326,
+            },
+            "items": [
+                {
+                    "itemId": "item-1",
+                    "itemCode": "SUR-0001",
+                    "compliance": "Compliant",
+                }
+            ],
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_checklist(checklist)
+
+    def test_rejects_a_malformed_date_string(self):
+        # Regression guard: without a FormatChecker a string like this validated
+        # clean and reached Alfresco as a malformed date.
+        checklist = {
+            "schemaVersion": "1.0",
+            "checklist": {
+                "inspectionId": "inspection-1",
+                "inspectionCode": "MDPP-I-0001",
+                "specialtyId": "specialty-1",
+                "providerId": "provider-1",
+                "specialtyCode": "SUR",
+                "specialtyName": "Vigilancia",
+                "startDate": "NOT-A-DATE",
             },
             "items": [
                 {

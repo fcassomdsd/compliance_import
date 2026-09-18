@@ -4,6 +4,15 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Schema `format` keywords (`date`, `date-time`) are now enforced.** `models.py` passed no `format_checker` to `jsonschema.validate`, so a payload carrying `startDate: "NOT-A-DATE"` validated clean and reached Alfresco as a malformed date. A regression test now pins the rejection.
+- **`.dockerignore` now excludes `.env` and `.venv/`.** `Dockerfile` uses `COPY . .`, so a developer's local `.env` (and the full `.venv/`) was baked into the image build context; only `venv/` was listed. Matches `CONTRIBUTING.md`'s "never commit `.env`, `venv/`, `.venv/`" rule.
+
+### Documentation
+
+- **README ID table corrected to the canonical `AV-XXXX-T-####` activity format** (was the bare `XXXX-T-####`), with a note that the importer's input validation accepts the optional `AV-` prefix and that `XXXXT####` is the compact form (`AV-MDPP-I-0001` → `MDPPI0001`).
+
 ## [2026-09-18]
 
 ### Added
