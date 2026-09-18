@@ -1,0 +1,22 @@
+name: CI
+
+# Mirror of this repository's GitLab CI validation job, published on GitHub purely for public
+# visibility (GitLab remains the source of truth for development — see CONTRIBUTING.md). Only
+# the correctness-signal job is mirrored here; release automation stays GitLab-only.
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --no-cache-dir -r requirements-dev.txt
+      - run: python -m unittest discover -s tests
