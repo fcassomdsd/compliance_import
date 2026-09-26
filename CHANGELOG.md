@@ -4,6 +4,14 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Supply-chain scanning in CI — P3.2.** No repository in this platform had any security scanning before this. A new `security:scan` job (GitLab, mirrored to GitHub Actions) runs Trivy over the dependency tree and produces a CycloneDX SBOM as an artifact.
+
+  The gate policy was chosen from measurement, not aspiration. **CRITICAL is blocking**: measured at zero across all six repos, so the gate is green today and genuinely stops a regression rather than being red on arrival. **HIGH is reported but not blocking**: 33 findings exist today (21 in `compliance_web`, 12 in `compliance_checklist`), every one with a fix available. Blocking on HIGH immediately would red those pipelines and the gate would be switched off within a day — which is worse than no gate, because a disabled gate still reads as protection. Clear the backlog, then raise the bar.
+
+  `--ignore-unfixed` keeps the gate actionable: a CVE with no available fix is information, not a task. `--skip-dirs` excludes generated and bind-mounted runtime trees — `web-data/` in particular is the AtroCore application installed at container bootstrap, gitignored and absent from a fresh checkout, which vendors its own npm tree; scanning it reports upstream's dependencies as if they were ours. It is not clean (upstream vendors a CRITICAL prototype-pollution advisory in `swiper`), but that belongs in an upstream report and in image scanning, not a gate on tracked source.
+
 ### Changed
 
 - **Dependencies are pinned to exact versions and SHA-256 hashes — P3.2 (supply chain).** `requirements.txt` was five bare package names: no versions, no lockfile, no hashes. Two builds a week apart could install different code, and a compromised release on PyPI would have been pulled silently. It is now **generated** by `pip-compile --generate-hashes` from a new `requirements.in` (which holds the top-level intent), pinning 23 packages with 448 hashes that pip verifies on install; `requirements-dev.txt` is generated the same way from `requirements-dev.in`. Do not hand-edit the two `.txt` files — the regeneration command is in the header of each.
