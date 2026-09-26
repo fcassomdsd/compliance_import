@@ -4,6 +4,16 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`IMPORT_API_KEY` now resolves from a file, and `APP_ENV=production` refuses an insecure configuration — P3.1 (production secrets).** The Alfresco credentials already resolved by precedence (`<NAME>_FILE` → `/run/secrets/<name>` → the environment variable); that logic moves into a new `secret_config.py` shared with the API key, matching `compliance_flow/data/secrets.js` and `compliance_web/server/config/secrets.cjs` so the platform has one shape. The key is resolved **per request rather than cached at import**, so a secret manager rewriting the file takes effect without restarting the container — covered by a test that rotates the file mid-flight and asserts the old key stops working and the new one starts. With `APP_ENV=production` the service now refuses to start when a required secret is missing or still holds a value published in this repository. `IMPORT_API_KEY` counts as required there specifically because leaving it unset **does not fail closed** — it disables the API-key middleware and leaves `/inspection-import` and `/followup-import` open. Development and the demo are unaffected: the guard is a no-op unless `APP_ENV=production`, which the demo does not set.
+
+### Changed
+
+- **A `<NAME>_FILE` pointing at a missing or empty file is now a hard failure instead of a silent fallback.** The previous resolver in `alfresco_client.py` fell through to the Docker secret and then the plain environment variable, so deleting the file a secret manager was supposed to write left the service running against a stale credential — a failed rotation that looks like a successful one. It now raises. `SecretResolutionError` subclasses `ValueError`, preserving the old contract exactly, so existing `except ValueError` handlers are unaffected.
+
+- **The new module is named `secret_config.py`, not `secrets.py`.** This directory is on `sys.path`, so a module named `secrets.py` shadows the standard library's `secrets` for every import in the process — verified during development: `secrets.token_hex` disappeared entirely, which would break any dependency reaching for it. A regression test asserts the stdlib module still resolves to the stdlib.
+
 ### Fixed
 
 - **Schema `format` keywords (`date`, `date-time`) are now enforced.** `models.py` passed no `format_checker` to `jsonschema.validate`, so a payload carrying `startDate: "NOT-A-DATE"` validated clean and reached Alfresco as a malformed date. A regression test now pins the rejection.
