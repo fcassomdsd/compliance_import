@@ -16,6 +16,12 @@ logging.basicConfig(
 
 from transformer import process_followup_payload, process_inspection
 from alfresco_client import OperatorIdentityError, resolve_ticket_identity
+from secret_config import assert_production_secrets, resolve_secret
+
+# Refuse an insecure production configuration before the app object exists, so
+# a misconfigured deployment fails at import time rather than serving requests.
+# No-op unless APP_ENV=production, so development and the demo are unaffected.
+assert_production_secrets()
 
 app = FastAPI(title="Inspection Import Service")
 
@@ -45,8 +51,15 @@ async def _require_api_key(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    api_key = os.environ.get("IMPORT_API_KEY")
+    # Resolved by the platform-wide precedence (IMPORT_API_KEY_FILE ->
+    # /run/secrets/import_api_key -> the environment variable), so the key can
+    # be delivered as a file by a secret manager. Resolved per request rather
+    # than cached at import so a rotated secret file is picked up without a
+    # restart; it is a single small read from the page cache.
+    api_key = resolve_secret("IMPORT_API_KEY")
     if api_key is None:
+        # Development only: with no key configured the ingestion endpoints are
+        # intentionally open. APP_ENV=production refuses to start in this state.
         return await call_next(request)
 
     request_key = request.headers.get("X-API-Key")

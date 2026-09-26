@@ -3,6 +3,8 @@ import logging
 import os
 from pathlib import Path
 
+from secret_config import SecretResolutionError, require_secret
+
 import requests
 from id_utils import build_checklist_id, build_followup_id_seq
 from requests.adapters import HTTPAdapter
@@ -27,38 +29,22 @@ DEFAULT_LIST_PAGE_SIZE = 200
 DEFAULT_RETRY_METHODS = frozenset(["POST", "GET", "HEAD"])
 
 
-def _read_secret_value(path):
+def _read_required_setting(env_name, default_secret_path=None):
+    """Resolve a required credential.
 
-    secret_path = Path(path)
+    Delegates to ``secret_config``, which implements the platform-wide
+    precedence (``<NAME>_FILE`` -> ``/run/secrets/<name>`` -> the environment
+    variable). ``default_secret_path`` is retained for call-site compatibility
+    and ignored: the secret directory is derived from the name, which is what
+    the other two services already do.
 
-    if not secret_path.is_file():
-        return None
-
-    value = secret_path.read_text(encoding="utf-8").strip()
-    return value or None
-
-
-def _read_required_setting(env_name, default_secret_path):
-
-    file_env_name = f"{env_name}_FILE"
-    file_path = os.getenv(file_env_name)
-
-    if file_path:
-        value = _read_secret_value(file_path)
-        if value:
-            return value
-
-    default_secret_value = _read_secret_value(default_secret_path)
-    if default_secret_value:
-        return default_secret_value
-
-    env_value = os.getenv(env_name)
-    if env_value:
-        return env_value
-
-    raise ValueError(
-        f"Missing {env_name}. Set {env_name}, {file_env_name}, or mount secret at {default_secret_path}"
-    )
+    Behaviour change: a ``<NAME>_FILE`` pointing at a missing or empty file now
+    raises instead of falling through to the next source. Falling through let a
+    failed secret rotation look like a successful one -- the file the secret
+    manager should have written is gone, and a stale environment variable keeps
+    the service running against the old credential.
+    """
+    return require_secret(env_name)
 
 
 class OperatorIdentityError(RuntimeError):
