@@ -4,6 +4,29 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- **Container hardening — P3.2.** No service in this platform previously declared a resource limit, a non-root user, a read-only root filesystem, dropped capabilities or `no-new-privileges`. What each service can take differs, and the differences are recorded as comments in the compose files rather than silently skipped:
+
+  - **Full hardening** (read-only rootfs, non-root user, `cap_drop: ALL`, `no-new-privileges`, CPU/memory limits) where the service writes nothing to its own filesystem. Verified by booting each one, not just by rendering the config.
+  - **Partial, with the reason stated in-file**, where a control is structurally inapplicable rather than merely postponed: Postgres chowns its data directory and drops privileges at startup, so `cap_drop: ALL` and a read-only rootfs break it; Node-RED must write `flows.json` into a bind mount, which is its deployment model; AtroCore installs itself into a bind mount at first run and Apache binds `:80` as root; the Alfresco JVM services write caches, logs and indexes inside their own filesystems.
+
+### Added
+
+- **Supply-chain scanning in CI — P3.2.** No repository in this platform had any security scanning before this. A new `security:scan` job (GitLab, mirrored to GitHub Actions) runs Trivy over the dependency tree and produces a CycloneDX SBOM as an artifact.
+
+  The gate policy was chosen from measurement, not aspiration. **CRITICAL is blocking**: measured at zero across all six repos, so the gate is green today and genuinely stops a regression rather than being red on arrival. **HIGH is reported but not blocking**: 33 findings exist today (21 in `compliance_web`, 12 in `compliance_checklist`), every one with a fix available. Blocking on HIGH immediately would red those pipelines and the gate would be switched off within a day — which is worse than no gate, because a disabled gate still reads as protection. Clear the backlog, then raise the bar.
+
+  `--ignore-unfixed` keeps the gate actionable: a CVE with no available fix is information, not a task. `--skip-dirs` excludes generated and bind-mounted runtime trees — `web-data/` in particular is the AtroCore application installed at container bootstrap, gitignored and absent from a fresh checkout, which vendors its own npm tree; scanning it reports upstream's dependencies as if they were ours. It is not clean (upstream vendors a CRITICAL prototype-pollution advisory in `swiper`), but that belongs in an upstream report and in image scanning, not a gate on tracked source.
+
+### Changed
+
+- **Dependencies are pinned to exact versions and SHA-256 hashes — P3.2 (supply chain).** `requirements.txt` was five bare package names: no versions, no lockfile, no hashes. Two builds a week apart could install different code, and a compromised release on PyPI would have been pulled silently. It is now **generated** by `pip-compile --generate-hashes` from a new `requirements.in` (which holds the top-level intent), pinning 23 packages with 448 hashes that pip verifies on install; `requirements-dev.txt` is generated the same way from `requirements-dev.in`. Do not hand-edit the two `.txt` files — the regeneration command is in the header of each.
+
+  The lockfile is deliberately generated **inside `python:3.12-slim`**, the image this service actually runs, rather than on a developer's interpreter. A first attempt resolved on Python 3.14 (what the local venv happens to be) and would have pinned a set never validated against the runtime; dependency resolution is Python-version-specific, so the lockfile has to come from the target. Verified end to end in that image: hashes accepted, `pip check` clean, 118 tests pass.
+
+- **The base image is pinned by digest** (`python:3.12-slim@sha256:...`) as well as tag, so a re-pushed upstream tag cannot silently change the build.
+
 ### Added
 
 - **`IMPORT_API_KEY` now resolves from a file, and `APP_ENV=production` refuses an insecure configuration — P3.1 (production secrets).** The Alfresco credentials already resolved by precedence (`<NAME>_FILE` → `/run/secrets/<name>` → the environment variable); that logic moves into a new `secret_config.py` shared with the API key, matching `compliance_flow/data/secrets.js` and `compliance_web/server/config/secrets.cjs` so the platform has one shape. The key is resolved **per request rather than cached at import**, so a secret manager rewriting the file takes effect without restarting the container — covered by a test that rotates the file mid-flight and asserts the old key stops working and the new one starts. With `APP_ENV=production` the service now refuses to start when a required secret is missing or still holds a value published in this repository. `IMPORT_API_KEY` counts as required there specifically because leaving it unset **does not fail closed** — it disables the API-key middleware and leaves `/inspection-import` and `/followup-import` open. Development and the demo are unaffected: the guard is a no-op unless `APP_ENV=production`, which the demo does not set.

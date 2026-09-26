@@ -1,0 +1,12 @@
+# Development and test dependencies, as top-level intent.
+#
+# requirements-dev.txt is GENERATED from this file:
+#
+#   pip-compile --generate-hashes --output-file requirements-dev.txt requirements-dev.in
+#
+# httpx is required by fastapi.testclient (Starlette's TestClient), which the
+# unittest suite uses. It is not needed at runtime, which is why it lives here
+# rather than in requirements.in -- CI installed only the runtime requirements
+# once and the suite could not even import.
+-r requirements.in
+httpx>=0.27

@@ -1,0 +1,19 @@
+# Runtime dependencies for the import service, as top-level intent.
+#
+# requirements.txt is GENERATED from this file and must not be hand-edited:
+#
+#   pip-compile --generate-hashes --output-file requirements.txt requirements.in
+#
+# It previously held five bare package names with no versions, no lockfile and
+# no hashes, so two builds a week apart could install different code and a
+# compromised release on PyPI would be pulled silently. The generated file
+# pins every transitive dependency to an exact version and a SHA-256 hash,
+# which pip then verifies on install.
+#
+# Floors reflect what this service actually relies on; pip-compile resolves
+# the exact versions.
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+requests>=2.32
+jsonschema>=4.22
