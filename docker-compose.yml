@@ -7,6 +7,34 @@ services:
       - "8000:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    # Container hardening (P3.2).
+    #
+    # read_only: the image already runs as the non-root `appuser` (see the
+    # Dockerfile) and the service writes nothing to its own filesystem except
+    # the temporary directory it extracts uploads into, so the root filesystem
+    # can be immutable. /tmp is a tmpfs sized to hold one upload: the ZIP-bomb
+    # limits cap an extraction at MAX_EXTRACTED_TOTAL_SIZE (500 MB default),
+    # and a tmpfs that is too small fails the upload rather than the container.
+    read_only: true
+    tmpfs:
+      - /tmp:size=768m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      # /health is exempt from the API-key middleware precisely so this works.
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       IMPORT_API_KEY: ${IMPORT_API_KEY:-}
       ALFRESCO_URL: ${ALFRESCO_URL:-http://proxy:8080/alfresco/api/-default-/public/alfresco/versions/1}
