@@ -9,10 +9,15 @@ from pathlib import Path
 from jsonschema.exceptions import ValidationError
 from starlette.concurrency import run_in_threadpool
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+# Structured logging (P3.5). Replaces the previous basicConfig call, which
+# only reached the root logger -- uvicorn's own handlers kept writing their
+# text format to the same stream, and a stream that is 90% JSON is a stream
+# a log aggregator cannot parse. This also strips Alfresco tickets out of
+# logged URLs; see structured_logging.py for why that is a live leak and not
+# a precaution.
+from structured_logging import bind_request_id, configure_logging, new_request_id
+
+configure_logging(level=logging.INFO)
 
 from transformer import process_followup_payload, process_inspection
 from alfresco_client import OperatorIdentityError, resolve_ticket_identity
@@ -42,6 +47,26 @@ MAX_COMPRESSION_RATIO = int(os.getenv("MAX_COMPRESSION_RATIO", "100"))
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.middleware("http")
+async def _bind_request_id(request: Request, call_next):
+    # An import is a multi-step operation that logs from several modules; with
+    # no correlation id, telling one upload's lines from another's under
+    # concurrent load means guessing from timestamps. Registered after the
+    # API-key middleware in source order, which means it runs FIRST -- Starlette
+    # applies middleware in reverse registration order -- so a rejected request
+    # is still traceable.
+    #
+    # An inbound X-Request-Id is honoured so a trace can span the gateway and
+    # this service, but it is length-capped: it ends up in every log line, and
+    # an unbounded caller-supplied string in a log field is a way to make logs
+    # expensive to store and unpleasant to read.
+    incoming = (request.headers.get("X-Request-Id") or "").strip()[:64]
+    request_id = bind_request_id(incoming or new_request_id())
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = request_id
+    return response
 
 
 @app.middleware("http")
