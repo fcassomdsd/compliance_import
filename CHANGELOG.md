@@ -4,6 +4,28 @@ All notable changes are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Structured JSON logging, with a request id on every line — P3.5.** Every line this service wrote was previously free text, which a log aggregator can store and little else: greppable, but "errors in the last hour" or "everything for this upload" needed a parser per message shape. `structured_logging.py` emits one JSON object per line with `ts`, `level`, `service`, `logger`, `msg` and whatever a caller passed as `extra`.
+
+  It reconfigures **uvicorn's** loggers too, not just the root. `logging.basicConfig` reaches only the root logger, while uvicorn installs its own handlers on `uvicorn`, `uvicorn.error` and `uvicorn.access`; left alone they keep writing their text format into the same stream, and Promtail parses a container's output as one format or the other — a stream that is 90% JSON is a stream that is not JSON.
+
+  A **request id** is bound per request by middleware and echoed back as `X-Request-Id`. An import is a multi-step operation logging from several modules, and without a correlation id, telling one upload's lines from another's under concurrent load means guessing from timestamps. An inbound `X-Request-Id` is honoured so a trace can span the gateway and this service, capped at 64 characters — it lands in every log line, and an unbounded caller-supplied string in a log field is a way to make logs expensive to store.
+
+  Timestamps are genuinely UTC. `logging`'s default converter is localtime, so a formatter that writes a trailing `Z` without an explicit UTC converter claims UTC and carries the host's wall clock — an error that only surfaces while correlating an incident across machines, which is the worst possible moment to find it. Covered by a test.
+
+  Uvicorn's `color_message` extra is dropped: every uvicorn record carries an ANSI-coloured duplicate of its own message under that name, which doubled the size of every uvicorn line for a second copy of text already in `msg`.
+
+  JSON when `APP_ENV=production`, text otherwise, and `LOG_FORMAT=json|text` overrides both ways — a developer reading a terminal is not a log aggregator.
+
+### Security
+
+- **Alfresco tickets are no longer written to the log.** This was a live leak, not a precaution. `resolve_ticket_identity` calls Alfresco with `params={"alf_ticket": ticket}`, and `AlfrescoClient._check_response` logs `response.request.url` on any failure — so a rejected operator ticket was written to stdout in full. An Alfresco ticket is a bearer credential: anyone holding it is that user until it expires.
+
+  The redaction happens in the **formatter**, where it cannot be forgotten at a call site, and it applies in text mode as well as JSON — a ticket in a development log is still a live credential, and a developer is far more likely to paste a log excerpt into a chat than to ship it anywhere. Other query parameters are left intact, because a redaction that ate the whole URL would destroy the one thing the line is there for: knowing which request failed.
+
+  It was survivable while logs stayed on one host. It is not, now that P3.5 ships them to a log aggregator.
+
 ### Changed
 
 - **`BIND_IP` controls which host interface published ports listen on — P3.3.** Every published port in this repo now binds through `${BIND_IP:-0.0.0.0}`. The default preserves current behaviour exactly: the demo quickstart and `demo-verify-ci.sh` reach services over the network, and under dind `DEMO_HOST` is `docker` rather than localhost, so a hardcoded loopback bind would break the whole-stack guard. A production deployment sets `BIND_IP=127.0.0.1`, leaving `compliance_web`'s TLS edge on 443 as the only externally published port. See "An ideal production configuration.md" §2.3.

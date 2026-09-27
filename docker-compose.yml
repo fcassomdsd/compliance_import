@@ -44,6 +44,12 @@ services:
       ALFRESCO_RETRY_CONNECT: ${ALFRESCO_RETRY_CONNECT:-3}
       ALFRESCO_RETRY_STATUS: ${ALFRESCO_RETRY_STATUS:-3}
       ALFRESCO_RETRY_BACKOFF_SECONDS: ${ALFRESCO_RETRY_BACKOFF_SECONDS:-0.5}
+      # Structured logging (P3.5). `json` or `text`; unset it follows APP_ENV.
+      # JSON is what makes these logs queryable by field in Loki rather than
+      # only greppable, and it carries a request_id so one upload's lines can
+      # be told from another's under concurrent load.
+      APP_ENV: ${APP_ENV:-}
+      LOG_FORMAT: ${LOG_FORMAT:-}
     networks:
       - import-backend
       - alfresco-backend
